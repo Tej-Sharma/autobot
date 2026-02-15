@@ -1,0 +1,44 @@
+AUTOBOT NON-COMMERCIAL LICENSE (ANCL-1.0)
+
+Copyright (c) 2026 Tejas Sharma. All rights reserved.
+
+This repository and all source code, documentation, scripts, assets, and related files
+(collectively, the "Software"), are provided under the following terms:
+
+1.  Grant of rights
+    You are granted a revocable, non-exclusive, non-transferable license to:
+    a) view the source;
+    b) copy the Software for personal, educational, research, evaluation, or internal
+       non-commercial testing purposes; and
+    c) modify the Software for non-commercial experimentation and internal use.
+
+2.  Non-commercial restriction
+    You may NOT use, operate, offer, rent, lease, sell, sublicense, or otherwise monetize the
+    Software, in whole or in part, in any manner that is commercial in nature, including but
+    not limited to:
+    a) charging users directly or indirectly for use of the Software, including SaaS offerings;
+    b) embedding the Software into a commercial product or service;
+    c) redistributing the Software as part of a commercial service;
+    d) using it to process paid workloads or for paid consulting deliverables.
+    No commercial use is allowed without a separate commercial license from the licensor.
+
+3.  Distribution conditions
+    You may distribute copies of the Software only if:
+    a) each copy includes this license unmodified;
+    b) you do not alter the non-commercial restriction above; and
+    c) you include prominent attribution to the original project and maintainer.
+
+4.  Attribution
+    Redistributions must keep all copyright notices and this license file in full.
+
+5.  No warranty
+    The Software is provided "AS IS" without warranties of any kind, express or implied.
+    The licensor disclaims all liability for damages or losses arising from use of the Software.
+
+6.  Termination
+    This license terminates immediately if you breach any term in this license.
+    Upon termination, you must cease all use and distribution and delete all copies
+    in your control except where required to preserve legal records.
+
+For a commercial license or exception, contact: [maintainer].
+

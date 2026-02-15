@@ -151,4 +151,9 @@ This is an open-source project. PRs are welcome for:
 
 ## License
 
-Apache-2.0
+This project is licensed under a custom non-commercial license for open contributions and self-serve use only:
+
+- Non-commercial use, testing, and contributions are allowed.
+- Commercial use, redistribution as paid service, and monetization are not allowed without a separate commercial agreement.
+
+See [`LICENSE`](LICENSE) for full terms.
