@@ -4,11 +4,10 @@ Unlike generic AI code reviewers, Autobot actually clicks through your frontend 
 
 ## Value, fast and practical
 
-- **Time saved**: speeds up review cycles by cutting repetitive smoke/visual checks out of the human loop.
-- **Peace of mind**: standardizes QA signals with a consistent job flow (queue + worker + artifacts).
-- **Instant alerting**: posts run outcomes automatically to GitHub PR flow so teams notice regressions fast.
-- **Faster first-pass validation**: route-by-route screenshot evidence and optional AI judgment reduce guesswork during triage.
-- **Auditability**: job artifacts and JSON/Markdown reports keep context for follow-up and debugging.
+- **Peace of mind**: actual testing on your flows to find problems in your app before users do
+- **Time saved**: focus on iterating, talking to users, new features by letting AutoBot quality test your current site (even AI outputs!)
+- **Instant alerting**: posts run outcomes automatically to GitHub PR flow so teams notice regressions fast
+- **Faster first-pass validation**: screenshot evidence to compare visual differences & broken UI that ruin your website
   
 ## Set It Up 
 
