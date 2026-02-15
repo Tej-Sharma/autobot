@@ -209,9 +209,12 @@ export async function postGithubCommentForActor(
 ): Promise<void> {
   const actorToken = actor ? await getRepoTokenForActor(repoIdentifier(owner, repo), actor) : undefined;
   const clients = [tokenizedOctokit(actorToken), fallbackOctokit];
+  const attempted: string[] = [];
+  let lastError: unknown;
 
   for (const client of clients) {
     if (!client) continue;
+    attempted.push(client === fallbackOctokit ? 'fallback-token' : `actor:${actor ?? 'unspecified'}`);
     try {
       await client.rest.issues.createComment({
         owner,
@@ -221,9 +224,22 @@ export async function postGithubCommentForActor(
       });
       return;
     } catch (error) {
+      lastError = error;
       if (client === fallbackOctokit) {
-        throw error;
+        break;
       }
     }
+  }
+
+  if (attempted.length === 0) {
+    throw new Error(`No GitHub credentials available for ${owner}/${repo}. Connect repo token first.`);
+  }
+
+  if (lastError) {
+    const tokenLabel = attempted.at(-1) ?? 'token';
+    if (lastError instanceof Error) {
+      throw new Error(`GitHub comment failed using ${tokenLabel}: ${lastError.message}`);
+    }
+    throw lastError;
   }
 }

@@ -10,6 +10,7 @@ import { enqueueRun } from './queue';
 import { getJobStatus } from './state';
 import { isRepoAllowed, parseWebhookRun } from './github';
 import { upsertRepoTokenMappings } from './repoTokens';
+import { registerConsoleRoutes } from './consoleApi';
 
 const app = express();
 const rawGithub = express.raw({ type: 'application/json', limit: '4mb' });
@@ -239,6 +240,8 @@ app.post('/api/github/webhook', rawGithub, async (req, res) => {
     res.status(400).json({ error: error instanceof Error ? error.message : 'invalid payload' });
   }
 });
+
+registerConsoleRoutes(app, jsonBody);
 
 app.use((req, res) => {
   res.status(404).json({ error: 'not found' });

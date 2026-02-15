@@ -36,16 +36,17 @@ Environment key locations:
 Source of truth for secret names in `autobot/.env`:
 - `OPENAI_API_KEY` → visual judge
 - `GITHUB_TOKEN` → optional fallback GitHub credential for comment posting + PR metadata enrichment
+  (the product's self-serve path uses OAuth repository tokens and does not require a PAT)
 - `POST /api/integrations/repo-tokens` receives user OAuth tokens for self-serve PR posting
 - `GITHUB_WEBHOOK_SECRET` → optional webhook signature verification
+- `GITHUB_OAUTH_CLIENT_ID`
+- `GITHUB_OAUTH_CLIENT_SECRET`
+- `AUTOBOT_WEBHOOK_URL` → backend webhook endpoint target
 - `VERCEL_TOKEN` → optional preview URL resolution
 - `AUTOBOT_API_TOKEN` → optional API access key (`x-api-key`)
 
 Source of secret names in `autobot-web/.env`:
-- `GITHUB_OAUTH_CLIENT_ID`
-- `GITHUB_OAUTH_CLIENT_SECRET`
-- `GITHUB_WEBHOOK_SECRET`
-- `AUTOBOT_API_TOKEN` (optional, when backend API tokening is enabled)
+- `AUTOBOT_API_BASE_URL` (backend API URL for `/api` proxy requests)
 
 Everything else is operational config (not secrets), but keep it in `.env` too.
 
@@ -131,7 +132,7 @@ Look under:
 - `src/config.ts`
   - canonical parser for env/ints/booleans/defaults
 - `src/github.ts`
-  - `GITHUB_TOKEN`, `GITHUB_WEBHOOK_SECRET`, `GITHUB_ALLOWED_REPOS`
+- `GITHUB_TOKEN` (optional fallback), `GITHUB_WEBHOOK_SECRET`, `GITHUB_ALLOWED_REPOS`
 - `src/vercel.ts`
   - `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`
 - `src/judge.ts`
@@ -154,34 +155,25 @@ Everything is in:
 
 ### Render production mode (recommended for this stack)
 
-Render can run this in a durable way with `render.yaml`. Keep in mind:
+Render can run this in a durable way with `render.yaml` (two-service model):
 
-- For true API+worker separation with shared artifact reads, you should first replace local artifact storage with external object storage.
-- The default shipped configuration uses one Render web service running both server and worker in one container so artifacts live on the same filesystem.
-- Add Redis as a managed service (`type: redis`) and inject its connection string into `REDIS_URL`.
-- Use secret values for keys (OpenAI / GitHub / Vercel / webhook token).
+- `autobot` (web)
+  - `runtime: docker`
+  - `dockerContext: autobot`
+  - starts with `node dist/server.js`
+- `autobot-worker` (worker)
+  - `runtime: docker`
+  - `dockerContext: autobot`
+  - starts with `node dist/worker.js`
+- `autobot-redis` (`type: redis`)
+- `autobot-web` (landing + OAuth dashboard)
 
-If you place `render.yaml` at repo root and push to the branch connected to Render, deployment is straightforward.
+Keep these in mind:
 
-```bash
-# One-shot deploy model (single Render web service)
-npm run build
-```
-
-Use `autobot` folder as service path in the blueprint and run:
-
-```bash
-node dist/server.js & node dist/worker.js; wait
-```
-
-That is what `start:all` does in:
-`/Users/tejas1/Documents/Code/_Constella/autobot-codes/autobot/package.json`
-
-If you later split into dedicated services, switch `startCommand` to launch only:
-- web service: `npm run start`
-- worker service: `npm run start:worker`
-
-and add object storage for artifacts before enabling shared paths across services.
+- `REDIS_URL` should come from `autobot-redis`.
+- `AUTOBOT_API_TOKEN` can be used for API hardening but is optional.
+- `GITHUB_TOKEN` is optional fallback only; OAuth tokens are the default for self-serve posting.
+- Keep secrets in Render dashboard (not in repo files).
 
 ---
 
