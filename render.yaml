@@ -3,12 +3,12 @@ services:
     name: autobot
     env: docker
     region: oregon
-    dockerContext: autobot
-    dockerfilePath: Dockerfile
     plan: starter
     autoDeploy: true
-    healthCheckPath: /health
+    dockerContext: autobot
+    dockerfilePath: Dockerfile
     dockerCommand: npm run start
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
@@ -42,10 +42,11 @@ services:
     name: autobot-worker
     env: docker
     region: oregon
-    dockerContext: autobot
-    dockerfilePath: Dockerfile
     plan: starter
     autoDeploy: true
+    dockerContext: autobot
+    dockerfilePath: Dockerfile
+    dockerCommand: npm run start:worker
     envVars:
       - key: NODE_ENV
         value: production
@@ -70,18 +71,17 @@ services:
         sync: false
       - key: VERCEL_PROJECT_ID
         sync: false
-    dockerCommand: npm run start:worker
 
   - type: web
     name: autobot-web
     env: docker
     region: oregon
-    dockerContext: autobot-web
-    dockerfilePath: Dockerfile
     plan: starter
     autoDeploy: true
-    healthCheckPath: /health
+    dockerContext: autobot-web
+    dockerfilePath: Dockerfile
     dockerCommand: npm run start
+    healthCheckPath: /health
     envVars:
       - key: PORT
         value: 4173
