@@ -82,7 +82,7 @@ Status:
 - ✅ passes with current `render.yaml` in this workspace.
 
 ## Known remaining operational notes
-- This folder (`/Users/tejas1/Documents/Code/_Constella/autobot-codes`) is not a git repo, so this is a working tree snapshot only.
+- Repository is now initialized at `/Users/tejas1/Documents/Code/_Constella/autobot-codes` and tracked at `https://github.com/Tej-Sharma/autobot` on branch `development`.
 - I could not run local Docker builds in this environment (`Cannot connect to docker daemon`).
 - To complete deployment, push these files to the git repo used by Render and click **Apply** on the Render Blueprint.
 
