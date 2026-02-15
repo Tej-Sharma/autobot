@@ -1,10 +1,6 @@
 # Autobot
 
-Autobot is an open-source PR quality automation stack that runs visual QA and optional AI judgment on your web app, then posts results back to GitHub.
-
-## Why this project exists
-
-Open-source projects often depend on manual visual checks and reviewer bandwidth. Autobot removes that bottleneck by running reproducible checks from code events (webhooks), collecting screenshots/artifacts, and summarizing findings in a way teams can act on quickly.
+Unlike generic AI code reviewers, Autobot actually clicks through your frontend to catch bugs in flow, visual differences, and errors.
 
 ## Value, fast and practical
 
@@ -13,18 +9,12 @@ Open-source projects often depend on manual visual checks and reviewer bandwidth
 - **Instant alerting**: posts run outcomes automatically to GitHub PR flow so teams notice regressions fast.
 - **Faster first-pass validation**: route-by-route screenshot evidence and optional AI judgment reduce guesswork during triage.
 - **Auditability**: job artifacts and JSON/Markdown reports keep context for follow-up and debugging.
+  
+## Set It Up 
 
-## What Autobot gives you
+Need a zero-hassle path? The website handles the infrastructure, tokens, running cost, and setup on your private machine: [autobot.it.com](https://autobot.it.com)
 
-- Playwright-based browser checks (`initial-load`, CTA coverage, interactions, scroll points)
-- Optional AI judge scoring and findings
-- API and webhook-backed job intake
-- Queue-driven workers with Redis
-- Self-hosted frontend console for GitHub OAuth and repo/webhook setup
-
-## Prefer Done for You
-
-Need a zero-hassle path? We handle the infrastructure, tokens, running cost, and setup on your private machine: [autobot.it.com](https://autobot.it.com).
+Otherwise, here's the local setup below
 
 ## Architecture at a glance
 
@@ -32,7 +22,7 @@ Need a zero-hassle path? We handle the infrastructure, tokens, running cost, and
 - `autobot-web/`: user dashboard / GitHub onboarding console
 - `render.yaml`: optional production blueprint for Render
 
-## Setup (development)
+## Local Setup
 
 ### 1) Prerequisites
 
