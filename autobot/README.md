@@ -18,7 +18,7 @@ Think of this like a launch card:
 
 ## Where to put API keys / tokens (short answer)
 All secrets live in:
-- `/Users/tejas1/Documents/Code/_Constella/constella-website/autobot/.env`
+- `autobot/.env` (at repo root: `/Users/tejas1/Documents/Code/_Constella/autobot-codes/autobot/.env`)
 - loaded via `dotenv` in `src/config.ts`
 
 Source of truth for secret names:
@@ -35,7 +35,7 @@ Everything else is operational config (not secrets), but keep it in `.env` too.
 ## Setup ritual (atypical, but explicit)
 
 ```bash
-cd /Users/tejas1/Documents/Code/_Constella/constella-website/autobot
+cd /Users/tejas1/Documents/Code/_Constella/autobot-codes/autobot
 cp .env.example .env
 ```
 
@@ -130,8 +130,8 @@ Look under:
 - shared `/app/artifacts` volume between `api` and `worker`
 
 Everything is in:
-- `/Users/tejas1/Documents/Code/_Constella/constella-website/autobot/docker-compose.yml`
-- `/Users/tejas1/Documents/Code/_Constella/constella-website/autobot/Dockerfile`
+- `/Users/tejas1/Documents/Code/_Constella/autobot-codes/autobot/docker-compose.yml`
+- `/Users/tejas1/Documents/Code/_Constella/autobot-codes/autobot/Dockerfile`
 
 ### Render production mode (recommended for this stack)
 
@@ -156,7 +156,7 @@ node dist/server.js & node dist/worker.js; wait
 ```
 
 That is what `start:all` does in:
-`/Users/tejas1/Documents/Code/_Constella/constella-website/autobot/package.json`
+`/Users/tejas1/Documents/Code/_Constella/autobot-codes/autobot/package.json`
 
 If you later split into dedicated services, switch `startCommand` to launch only:
 - web service: `npm run start`
