@@ -6,7 +6,7 @@ services:
     plan: starter
     branch: development
     autoDeploy: true
-    dockerContext: autobot
+    dockerContext: .
     dockerfilePath: autobot/Dockerfile
     dockerCommand: npm run start
     healthCheckPath: /health
@@ -45,7 +45,7 @@ services:
     region: oregon
     plan: starter
     autoDeploy: true
-    dockerContext: autobot
+    dockerContext: .
     dockerfilePath: autobot/Dockerfile
     dockerCommand: npm run start:worker
     envVars:
@@ -80,7 +80,7 @@ services:
     branch: development
     plan: starter
     autoDeploy: true
-    dockerContext: autobot-web
+    dockerContext: .
     dockerfilePath: autobot-web/Dockerfile
     dockerCommand: npm run start
     healthCheckPath: /health
