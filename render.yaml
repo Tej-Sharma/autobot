@@ -1,13 +1,13 @@
 services:
   - type: web
     name: autobot
-    env: docker
+    runtime: docker
     region: oregon
     plan: starter
     branch: development
     autoDeploy: true
     dockerContext: autobot
-    dockerfilePath: Dockerfile
+    dockerfilePath: autobot/Dockerfile
     dockerCommand: npm run start
     healthCheckPath: /health
     envVars:
@@ -41,12 +41,12 @@ services:
 
   - type: worker
     name: autobot-worker
-    env: docker
+    runtime: docker
     region: oregon
     plan: starter
     autoDeploy: true
     dockerContext: autobot
-    dockerfilePath: Dockerfile
+    dockerfilePath: autobot/Dockerfile
     dockerCommand: npm run start:worker
     envVars:
       - key: NODE_ENV
@@ -75,13 +75,13 @@ services:
 
   - type: web
     name: autobot-web
-    env: docker
+    runtime: docker
     region: oregon
     branch: development
     plan: starter
     autoDeploy: true
     dockerContext: autobot-web
-    dockerfilePath: Dockerfile
+    dockerfilePath: autobot-web/Dockerfile
     dockerCommand: npm run start
     healthCheckPath: /health
     envVars:
