@@ -6,8 +6,9 @@ services:
     plan: starter
     branch: development
     autoDeploy: true
-    dockerContext: autobot
-    dockerfilePath: Dockerfile
+    dockerContext: .
+    dockerfilePath: autobot/Dockerfile
+    dockerCommand: npm run start
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
@@ -25,12 +26,20 @@ services:
         sync: false
       - key: OPENAI_MODEL
         value: gpt-4o-mini
+      - key: APP_BASE_URL
+        value: https://autobot.it.com
       - key: GITHUB_TOKEN
         sync: false
       - key: GITHUB_WEBHOOK_SECRET
         sync: false
+      - key: GITHUB_OAUTH_CLIENT_ID
+        sync: false
+      - key: GITHUB_OAUTH_CLIENT_SECRET
+        sync: false
       - key: GITHUB_ALLOWED_REPOS
         sync: false
+      - key: AUTOBOT_WEBHOOK_URL
+        value: https://autobot-er1m.onrender.com/api/github/webhook
       - key: AUTOBOT_API_TOKEN
         sync: false
       - key: VERCEL_TOKEN
@@ -44,8 +53,9 @@ services:
     region: oregon
     plan: starter
     autoDeploy: true
-    dockerContext: autobot
-    dockerfilePath: Dockerfile
+    dockerContext: .
+    dockerfilePath: autobot/Dockerfile
+    dockerCommand: npm run start:worker
     envVars:
       - key: NODE_ENV
         value: production
@@ -78,26 +88,15 @@ services:
     branch: development
     plan: starter
     autoDeploy: true
-    dockerContext: autobot-web
-    dockerfilePath: Dockerfile
+    dockerContext: .
+    dockerfilePath: autobot-web/Dockerfile
+    dockerCommand: npm run start
     healthCheckPath: /health
     envVars:
       - key: PORT
         value: 4173
-      - key: APP_BASE_URL
-        value: https://autobot.it.com
-      - key: GITHUB_OAUTH_CLIENT_ID
-        sync: false
-      - key: GITHUB_OAUTH_CLIENT_SECRET
-        sync: false
-      - key: AUTOBOT_WEBHOOK_URL
-        value: https://autobot-er1m.onrender.com/api/github/webhook
       - key: AUTOBOT_API_BASE_URL
         value: https://autobot-er1m.onrender.com
-      - key: AUTOBOT_API_TOKEN
-        sync: false
-      - key: GITHUB_WEBHOOK_SECRET
-        sync: false
 
   - type: redis
     name: autobot-redis
