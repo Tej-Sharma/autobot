@@ -76,6 +76,12 @@ type RepoTokenSyncResult = {
   failed: string[];
 };
 
+type AutobotRunResponse = {
+  jobId?: string;
+  statusUrl?: string;
+  artifactsUrl?: string;
+};
+
 const app = express();
 const webPublicPath = path.resolve(process.cwd(), 'public');
 
@@ -245,7 +251,7 @@ const postRunToAutobot = async (
   sessionUser: string,
   mode: 'minimal' | 'smoke' | 'full',
   includeJudge: boolean,
-) => {
+): Promise<AutobotRunResponse> => {
   const payload = {
     environment: 'custom' as const,
     baseUrl,
@@ -260,7 +266,7 @@ const postRunToAutobot = async (
     },
   };
 
-  return callAutobotApi('/api/qa/run', payload);
+  return callAutobotApi<AutobotRunResponse>('/api/qa/run', payload);
 };
 
 const registerRepoTokensWithAutobot = async (

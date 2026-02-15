@@ -120,7 +120,7 @@ app.post('/api/integrations/repo-tokens', jsonBody, async (req, res) => {
     return;
   }
 
-  const rawRepos = Array.isArray(req.body?.repos) ? req.body.repos : [];
+  const rawRepos: unknown[] = Array.isArray(req.body?.repos) ? (req.body.repos as unknown[]) : [];
   const repos = rawRepos
     .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
     .filter((entry) => entry.includes('/'));
