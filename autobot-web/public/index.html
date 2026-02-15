@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>AI PR Testing Bot</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#FFFFFF", 
+              "background-light": "#F3F4F6", 
+              "background-dark": "#0A0A0A", 
+              "surface-dark": "#161616",
+              "border-dark": "#2A2A2A",
+              "accent-blue": "#3B82F6",
+              "accent-purple": "#8B5CF6",
+            },
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              mono: ["JetBrains Mono", "monospace"],
+            },
+            borderRadius: {
+              DEFAULT: "0.5rem",
+              'xl': '0.75rem',
+              '2xl': '1rem',
+            },
+            animation: {
+                'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                'float': 'float 6s ease-in-out infinite',
+            },
+            keyframes: {
+                float: {
+                    '0%, 100%': { transform: 'translateY(0)' },
+                    '50%': { transform: 'translateY(-10px)' },
+                }
+            }
+          },
+        },
+      };
+    </script>
+    <style>
+        .glow-text {
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        }
+        .glow-box {
+            box-shadow: 0 0 40px -10px rgba(139, 92, 246, 0.15);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .arrow-path {
+            stroke-dasharray: 10;
+            animation: dash 30s linear infinite;
+        }
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -1000;
+            }
+        }
+        .bg-grid-pattern {
+            background-size: 40px 40px;
+            background-image: 
+                linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+  </head>
+  <body class="bg-background-light dark:bg-background-dark text-gray-900 dark:text-gray-200 antialiased font-sans transition-colors duration-300 min-h-screen flex flex-col">
+    <nav class="sticky top-0 z-50 border-b border-gray-200 dark:border-white/10 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center h-16">
+          <div class="flex items-center gap-2">
+            <div class="text-2xl font-bold tracking-tighter dark:text-white flex items-center gap-2">
+              <span class="material-icons text-gray-800 dark:text-white">smart_toy</span>
+              TestBot
+            </div>
+          </div>
+          <div class="hidden md:flex space-x-8 text-sm font-medium text-gray-600 dark:text-gray-400">
+            <a class="hover:text-gray-900 dark:hover:text-white transition-colors" href="#">Product</a>
+            <a class="hover:text-gray-900 dark:hover:text-white transition-colors" href="#">Integration</a>
+            <a class="hover:text-gray-900 dark:hover:text-white transition-colors" href="#">Pricing</a>
+            <a class="hover:text-gray-900 dark:hover:text-white transition-colors" href="#">Docs</a>
+          </div>
+          <div class="flex items-center space-x-4">
+            <a id="sign-in-link" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors hidden sm:block" href="#">Sign in</a>
+            <button id="start-now-top" data-auth-action="start" class="bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-full text-sm font-semibold hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors" type="button">
+              Get Started
+            </button>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <main class="flex-grow relative overflow-hidden">
+      <div id="landingSection">
+        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-gradient-to-b from-purple-500/10 to-transparent blur-[120px] pointer-events-none"></div>
+        <div class="absolute inset-0 bg-grid-pattern opacity-30 pointer-events-none"></div>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 relative z-10">
+          <div class="text-center max-w-4xl mx-auto mb-20">
+            <h1 class="text-5xl md:text-7xl font-bold tracking-tight text-gray-900 dark:text-white mb-6 leading-tight">
+              Full AI testing your app <br/>
+              <span class="text-gray-500 dark:text-gray-400 font-medium">On Each PR</span>
+            </h1>
+            <p class="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+              Automatically catch bugs before merge. Our agent runs your app, dynamically generates and executes tests, and reports back directly in GitHub.
+            </p>
+            <div class="flex flex-col sm:flex-row justify-center gap-4">
+              <button id="start-now-hero" data-auth-action="start" class="bg-black dark:bg-white text-white dark:text-black px-8 py-4 rounded-full text-base font-semibold hover:bg-gray-800 dark:hover:bg-gray-200 transition-all transform hover:scale-105 flex items-center justify-center gap-2">
+                Install on GitHub
+                <span class="material-icons text-sm">download</span>
+              </button>
+              <button class="bg-gray-200 dark:bg-white/10 text-gray-900 dark:text-white border border-gray-300 dark:border-white/10 px-8 py-4 rounded-full text-base font-semibold hover:bg-gray-300 dark:hover:bg-white/20 transition-all" type="button">
+                View Demo
+              </button>
+            </div>
+          </div>
+
+          <div class="relative mt-12 mb-24">
+            <div class="bg-white/50 dark:bg-surface-dark/60 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-3xl p-8 md:p-16 relative overflow-hidden glow-box shadow-2xl">
+              <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-500/10 via-transparent to-transparent opacity-50"></div>
+              <div class="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-8 lg:gap-4 max-w-5xl mx-auto min-h-[400px]">
+                <div class="relative group">
+                  <div class="w-32 h-32 md:w-40 md:h-40 bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xl flex flex-col items-center justify-center relative z-20 animate-float transition-all duration-300 group-hover:border-purple-500/50 group-hover:shadow-[0_0_30px_-5px_rgba(139,92,246,0.3)]">
+                    <svg aria-hidden="true" class="w-12 h-12 md:w-16 md:h-16 text-gray-900 dark:text-white" fill="currentColor" viewBox="0 0 24 24">
+                      <path clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" fill-rule="evenodd"></path>
+                    </svg>
+                    <span class="mt-3 text-sm font-semibold text-gray-600 dark:text-gray-400 font-mono">New PR</span>
+                  </div>
+                  <span class="absolute -top-1 -right-1 flex h-4 w-4">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-4 w-4 bg-green-500"></span>
+                  </span>
+                </div>
+
+                <div class="hidden lg:flex flex-col items-center justify-center flex-1 mx-4 relative h-12">
+                  <div class="absolute inset-0 flex items-center">
+                    <div class="w-full h-[2px] bg-gradient-to-r from-gray-300 via-purple-500 to-gray-300 dark:from-gray-700 dark:via-purple-500 dark:to-gray-700 opacity-50"></div>
+                  </div>
+                  <svg class="w-full h-8 absolute text-purple-500 animate-pulse" preserveAspectRatio="none" viewBox="0 0 100 20">
+                    <path class="arrow-path opacity-80" d="M0 10 L100 10" stroke="currentColor" stroke-dasharray="4 2" stroke-width="2"></path>
+                    <polygon fill="currentColor" points="95,5 100,10 95,15"></polygon>
+                  </svg>
+                </div>
+                <div class="lg:hidden h-16 w-[2px] bg-gradient-to-b from-gray-300 via-purple-500 to-gray-300 dark:from-gray-700 dark:via-purple-500 dark:to-gray-700"></div>
+
+                <div class="glass-card rounded-xl p-6 w-full max-w-[280px] flex flex-col gap-4 relative z-20 transition-transform hover:-translate-y-1 duration-300">
+                  <div class="flex items-center gap-3 mb-1">
+                    <div class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-500">
+                      <span class="material-icons text-sm">play_arrow</span>
+                    </div>
+                    <span class="text-sm font-bold text-gray-800 dark:text-gray-200">Auto-Run App</span>
+                  </div>
+                  <div class="space-y-2">
+                    <div class="h-2 bg-gray-200 dark:bg-white/10 rounded w-3/4 animate-pulse"></div>
+                    <div class="h-2 bg-gray-200 dark:bg-white/10 rounded w-1/2 animate-pulse delay-75"></div>
+                  </div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400 font-mono mt-2 pt-2 border-t border-gray-200 dark:border-white/5 flex justify-between">
+                    <span>Status:</span>
+                    <span class="text-green-500">Running...</span>
+                  </div>
+                </div>
+
+                <div class="hidden lg:flex flex-col items-center justify-center flex-1 mx-4 relative h-12">
+                  <div class="absolute inset-0 flex items-center">
+                    <div class="w-full h-[2px] bg-gradient-to-r from-gray-300 via-blue-500 to-gray-300 dark:from-gray-700 dark:via-blue-500 dark:to-gray-700 opacity-50"></div>
+                  </div>
+                  <svg class="w-full h-8 absolute text-blue-500 animate-pulse" preserveAspectRatio="none" viewBox="0 0 100 20">
+                    <path class="arrow-path opacity-80" d="M0 10 L100 10" stroke="currentColor" stroke-dasharray="4 2" stroke-width="2"></path>
+                    <polygon fill="currentColor" points="95,5 100,10 95,15"></polygon>
+                  </svg>
+                </div>
+                <div class="lg:hidden h-16 w-[2px] bg-gradient-to-b from-gray-300 via-blue-500 to-gray-300 dark:from-gray-700 dark:via-blue-500 dark:to-gray-700"></div>
+
+                <div class="glass-card rounded-xl p-6 w-full max-w-[280px] flex flex-col gap-4 relative z-20 transition-transform hover:-translate-y-1 duration-300">
+                  <div class="flex items-center gap-3 mb-1">
+                    <div class="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-500">
+                      <span class="material-icons text-sm">science</span>
+                    </div>
+                    <span class="text-sm font-bold text-gray-800 dark:text-gray-200">Generate &amp; Run Tests</span>
+                  </div>
+                  <div class="bg-gray-900/50 rounded p-2 font-mono text-[10px] text-green-400 overflow-hidden leading-relaxed border border-white/5">
+                    &gt; analyzing diff...<br/>
+                    &gt; generating spec...<br/>
+                    &gt; 3 edge cases found
+                  </div>
+                </div>
+              </div>
+
+              <div class="absolute inset-0 pointer-events-none z-0 hidden lg:block">
+                <svg class="w-full h-full" preserveAspectRatio="none" viewBox="0 0 1000 400">
+                  <defs>
+                    <linearGradient id="grad1" x1="0%" x2="100%" y1="0%" y2="0%">
+                      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:0"></stop>
+                      <stop offset="50%" style="stop-color:#8B5CF6;stop-opacity:1"></stop>
+                      <stop offset="100%" style="stop-color:#3B82F6;stop-opacity:0"></stop>
+                    </linearGradient>
+                    <marker id="arrowhead" markerHeight="7" markerWidth="10" orient="auto" refX="9" refY="3.5">
+                      <polygon fill="#8B5CF6" points="0 0, 10 3.5, 0 7"></polygon>
+                    </marker>
+                  </defs>
+                  <path class="opacity-60 arrow-path" d="M 850 260 C 850 380, 150 380, 150 260" fill="none" marker-end="url(#arrowhead)" stroke="url(#grad1)" stroke-dasharray="8 8" stroke-width="2"></path>
+                </svg>
+                <div class="absolute bottom-12 left-1/2 -translate-x-1/2 bg-background-light dark:bg-background-dark border border-gray-200 dark:border-white/10 px-4 py-1.5 rounded-full shadow-lg">
+                  <div class="flex items-center gap-2 text-xs font-semibold text-purple-600 dark:text-purple-400 whitespace-nowrap">
+                    <span class="material-icons text-xs">auto_fix_high</span>
+                    commits fixes + report
+                  </div>
+                </div>
+              </div>
+
+              <div class="lg:hidden mt-8 flex flex-col items-center">
+                <div class="h-12 w-[2px] bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-700"></div>
+                <div class="bg-background-light dark:bg-background-dark border border-gray-200 dark:border-white/10 px-4 py-2 rounded-full shadow-lg mt-2">
+                  <div class="flex items-center gap-2 text-xs font-semibold text-purple-600 dark:text-purple-400">
+                    <span class="material-icons text-xs">replay</span>
+                    Repeats on every commit
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="text-center">
+            <p class="text-sm font-mono text-gray-500 dark:text-gray-500 mb-8 uppercase tracking-widest">Integrating seamlessly with</p>
+            <div class="flex flex-wrap justify-center items-center gap-8 md:gap-16 opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
+              <div class="flex items-center gap-2 text-xl font-bold text-gray-800 dark:text-white">
+                <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"></path></svg>
+                GitLab
+              </div>
+              <div class="flex items-center gap-2 text-xl font-bold text-gray-800 dark:text-white">
+                <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"></path></svg>
+                GitHub
+              </div>
+              <div class="flex items-center gap-2 text-xl font-bold text-gray-800 dark:text-white">
+                <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19.36 2.003a20.005 20.005 0 00-7.36 0C7.23 2.563 2 7.093 2 12c0 4.907 5.23 9.437 10 9.997 1.623.19 3.277.19 4.9 0 4.77-.56 10-5.09 10-9.997 0-4.907-5.23-9.437-10-9.997zM12 18a6 6 0 110-12 6 6 0 010 12z"></path></svg>
+                BitBucket
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <section id="dashboardSection" class="hidden">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 relative z-10">
+          <div class="bg-white/50 dark:bg-surface-dark/60 border border-gray-200 dark:border-white/10 rounded-3xl p-8 md:p-10 glow-box">
+            <div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <p class="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-400">Dashboard</p>
+                <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Connected GitHub account</h2>
+                <p class="text-gray-600 dark:text-gray-400 mt-1">Enable repositories and apply Autobot webhooks so PR events trigger QA runs.</p>
+              </div>
+              <button id="logout-button" class="rounded-full border border-gray-300 dark:border-white/10 text-sm px-4 py-2 bg-white/80 dark:bg-surface-dark/80 hover:bg-gray-100 dark:hover:bg-white/10 transition">Sign out</button>
+            </div>
+
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+              <div class="flex items-center gap-3">
+                <img id="user-avatar" alt="user" class="h-12 w-12 rounded-full ring-2 ring-purple-400/70" src=""/>
+                <div>
+                  <p id="user-name" class="font-semibold text-gray-900 dark:text-white">Loading...</p>
+                  <p id="user-login" class="text-sm text-gray-600 dark:text-gray-400 font-mono"></p>
+                </div>
+              </div>
+              <button id="sync-webhooks-btn" class="rounded-full bg-black dark:bg-white text-white dark:text-black px-6 py-3 text-sm font-semibold hover:bg-gray-800 dark:hover:bg-gray-200 transition">Enable webhook on selected repos</button>
+            </div>
+
+            <div class="mt-4 mb-8 grid gap-3">
+              <label for="run-base-url" class="text-sm text-gray-600 dark:text-gray-300">Run now target URL (custom environment)</label>
+              <div class="flex flex-col sm:flex-row gap-3">
+                <input id="run-base-url" class="flex-1 rounded-lg border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-black/20 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-500/40" placeholder="https://your-app.example.com"/>
+                <button id="run-default-branch-btn" class="rounded-full bg-purple-600 text-white px-5 py-2.5 text-sm font-semibold hover:bg-purple-500 transition">Run now on selected repos (default branch)</button>
+              </div>
+            </div>
+
+            <div id="repo-loading" class="text-sm text-gray-500 dark:text-gray-400 mb-4">Loading repositories...</div>
+            <div id="repo-empty" class="hidden text-sm text-gray-500 dark:text-gray-400 mb-4">No repositories with webhook admin access were found.</div>
+
+            <div class="bg-background-light/70 dark:bg-black/25 rounded-2xl border border-gray-200 dark:border-white/10 p-4 md:p-5">
+              <div id="repo-list" class="space-y-3 max-h-80 overflow-auto pr-2"></div>
+            </div>
+
+            <div id="sync-result" class="mt-6 text-sm rounded-xl border border-gray-200 dark:border-white/10 bg-white/50 dark:bg-black/25 p-4 hidden"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="border-t border-gray-200 dark:border-white/10 bg-background-light dark:bg-background-dark py-12">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
+        <div class="text-sm text-gray-500 dark:text-gray-400">© 2024 AI TestBot Inc. All rights reserved.</div>
+        <div class="flex gap-6">
+          <a class="text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors" href="#">
+            <span class="sr-only">Twitter</span>
+            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84"></path></svg>
+          </a>
+          <a class="text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors" href="#">
+            <span class="sr-only">GitHub</span>
+            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" fill-rule="evenodd"></path></svg>
+          </a>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      const themeState = localStorage.theme;
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (themeState === 'dark' || (!themeState && prefersDark)) {
+        document.documentElement.classList.add('dark');
+      } else if (themeState === 'light') {
+        document.documentElement.classList.remove('dark');
+      }
+
+      const authReturnBase = '/';
+      const api = async (url, options = {}) => {
+        const response = await fetch(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(options.headers || {}),
+          },
+          ...options,
+        });
+
+        const payload = await response.json().catch(() => ({ error: 'Invalid JSON response' }));
+        if (!response.ok) {
+          throw new Error(payload.error || `Request failed (${response.status})`);
+        }
+        return payload;
+      };
+
+      const startAuth = (event) => {
+        event.preventDefault();
+        const authUrl = `/api/auth/github?returnTo=${encodeURIComponent(authReturnBase)}`;
+        window.location.href = authUrl;
+      };
+
+      const hide = (el) => {
+        el.classList.add('hidden');
+      };
+
+      const show = (el) => {
+        el.classList.remove('hidden');
+      };
+
+      const landingSection = document.getElementById('landingSection');
+      const dashboardSection = document.getElementById('dashboardSection');
+      const signInLink = document.getElementById('sign-in-link');
+      const startButtons = document.querySelectorAll('[data-auth-action="start"]');
+
+      const repoList = document.getElementById('repo-list');
+      const repoLoading = document.getElementById('repo-loading');
+      const repoEmpty = document.getElementById('repo-empty');
+      const syncResult = document.getElementById('sync-result');
+      const syncButton = document.getElementById('sync-webhooks-btn');
+      const runNowButton = document.getElementById('run-default-branch-btn');
+      const runBaseUrlInput = document.getElementById('run-base-url');
+      const userAvatar = document.getElementById('user-avatar');
+      const userName = document.getElementById('user-name');
+      const userLogin = document.getElementById('user-login');
+      const logoutButton = document.getElementById('logout-button');
+
+      const githubAuthTarget = `/api/auth/github?returnTo=${encodeURIComponent(authReturnBase)}`;
+
+      const renderRepos = (repos) => {
+        if (!repos.length) {
+          repoLoading.classList.add('hidden');
+          show(repoEmpty);
+          return;
+        }
+        hide(repoLoading);
+        repoEmpty.classList.add('hidden');
+        repoList.innerHTML = repos
+          .map(
+            (repo) => `
+              <label class="flex items-center justify-between gap-4 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-white/40 dark:bg-white/5">
+                <span class="inline-flex items-center gap-3 min-w-0">
+                  <input type="checkbox" name="repo" value="${repo.fullName}" class="h-4 w-4 rounded border-gray-300">
+                  <span class="truncate">
+                    <span class="font-medium text-gray-900 dark:text-white">${repo.fullName}</span>
+                    <span class="block text-xs text-gray-500 dark:text-gray-400 truncate">${repo.description || 'No description'}</span>
+                  </span>
+                </span>
+                <span class="text-xs text-gray-500 dark:text-gray-400 ${repo.private ? 'text-yellow-400' : ''}">${repo.private ? 'Private' : 'Public'}</span>
+              </label>
+            `,
+          )
+          .join('');
+      };
+
+      const loadDashboardData = async () => {
+        try {
+          const session = await api('/api/session');
+          if (!session.authenticated) return null;
+
+          show(dashboardSection);
+          hide(landingSection);
+          userAvatar.src = session.user.avatarUrl;
+          userName.textContent = session.user.name || 'GitHub User';
+          userLogin.textContent = `@${session.user.login}`;
+          signInLink.href = '#';
+
+          const repos = await api('/api/repos');
+          renderRepos(repos.repositories || []);
+          return session;
+        } catch (error) {
+          console.error(error);
+          return null;
+        }
+      };
+
+      const showLanding = () => {
+        hide(dashboardSection);
+        show(landingSection);
+        signInLink.href = githubAuthTarget;
+        startButtons.forEach((button) => {
+          button.addEventListener('click', startAuth);
+        });
+      };
+
+      const start = async () => {
+        const session = await api('/api/session').catch(() => ({ authenticated: false }));
+        if (session?.authenticated) {
+          await loadDashboardData();
+          return;
+        }
+        showLanding();
+      };
+
+      const syncWebhooks = async () => {
+        const selected = Array.from(document.querySelectorAll('input[name="repo"]:checked')).map((node) => node.value);
+        if (!selected.length) {
+          syncResult.textContent = 'Select at least one repository before syncing webhooks.';
+          show(syncResult);
+          syncResult.className = 'mt-6 text-sm rounded-xl border border-amber-300/40 bg-amber-200/20 dark:bg-amber-400/10 text-amber-300 p-4';
+          return;
+        }
+
+        syncButton.disabled = true;
+        syncButton.textContent = 'Syncing...';
+        syncResult.className = 'mt-6 text-sm rounded-xl border border-gray-200 dark:border-white/10 bg-white/50 dark:bg-black/25 p-4';
+        syncResult.textContent = 'Syncing repositories...';
+        show(syncResult);
+
+        try {
+          const result = await api('/api/webhooks/sync', {
+            method: 'POST',
+            body: JSON.stringify({ repos: selected }),
+          });
+
+          const lines = result.results.map(
+            (entry) => `${entry.repo}: ${entry.status.replaceAll('_', ' ').replace(/\b\w/g, (match) => match.toUpperCase())} - ${entry.message}`,
+          );
+          syncResult.innerHTML = lines.map((line) => `<div>${line}</div>`).join('');
+        } catch (error) {
+          syncResult.textContent = error.message || 'Failed to sync webhooks';
+        } finally {
+          syncButton.disabled = false;
+          syncButton.textContent = 'Enable webhook on selected repos';
+        }
+      };
+
+      const runNow = async () => {
+        const selected = Array.from(document.querySelectorAll('input[name="repo"]:checked')).map((node) => node.value);
+        if (!selected.length) {
+          syncResult.textContent = 'Select at least one repository before running.';
+          show(syncResult);
+          syncResult.className = 'mt-6 text-sm rounded-xl border border-amber-300/40 bg-amber-200/20 dark:bg-amber-400/10 text-amber-300 p-4';
+          return;
+        }
+
+        const targetBaseUrl = runBaseUrlInput.value.trim();
+        if (!targetBaseUrl) {
+          syncResult.textContent = 'Enter a deployment URL before running.';
+          show(syncResult);
+          syncResult.className = 'mt-6 text-sm rounded-xl border border-amber-300/40 bg-amber-200/20 dark:bg-amber-400/10 text-amber-300 p-4';
+          return;
+        }
+
+        runNowButton.disabled = true;
+        runNowButton.textContent = 'Queuing runs...';
+        syncResult.className = 'mt-6 text-sm rounded-xl border border-gray-200 dark:border-white/10 bg-white/50 dark:bg-black/25 p-4';
+        syncResult.textContent = 'Running selected repos on default branch...';
+        show(syncResult);
+
+        try {
+          const result = await api('/api/runs/default-branch', {
+            method: 'POST',
+            body: JSON.stringify({
+              repos: selected,
+              baseUrl: targetBaseUrl,
+              mode: 'smoke',
+              includeJudge: true,
+            }),
+          });
+
+          const lines = result.results.map((entry) => {
+            const state = entry.status.replace('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+            const link = entry.statusUrl ? ` <a class="underline" href="${entry.statusUrl}" target="_blank">status</a>` : '';
+            return `${entry.repo}: ${state} - ${entry.message}${link ? ` (${link})` : ''}`;
+          });
+
+          syncResult.innerHTML = lines.map((line) => `<div>${line}</div>`).join('');
+        } catch (error) {
+          syncResult.textContent = error.message || 'Failed to run now';
+        } finally {
+          runNowButton.disabled = false;
+          runNowButton.textContent = 'Run now on selected repos (default branch)';
+        }
+      };
+
+      const logout = async () => {
+        await api('/api/logout', { method: 'POST' }).catch(() => {});
+        window.location.href = '/';
+      };
+
+      start();
+
+      syncButton?.addEventListener('click', syncWebhooks);
+      runNowButton?.addEventListener('click', runNow);
+      logoutButton?.addEventListener('click', logout);
+      signInLink?.addEventListener('click', (event) => {
+        event.preventDefault();
+        startAuth(event);
+      });
+    </script>
+  </body>
+</html>

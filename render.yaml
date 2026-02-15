@@ -1,0 +1,108 @@
+services:
+  - type: web
+    name: autobot
+    env: docker
+    region: oregon
+    dockerContext: autobot
+    dockerfilePath: Dockerfile
+    plan: starter
+    autoDeploy: true
+    healthCheckPath: /health
+    dockerCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: ARTIFACT_ROOT
+        value: /app/artifacts
+      - key: REDIS_URL
+        fromService:
+          name: autobot-redis
+          type: redis
+          property: connectionString
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
+      - key: GITHUB_ALLOWED_REPOS
+        sync: false
+      - key: AUTOBOT_API_TOKEN
+        sync: false
+      - key: VERCEL_TOKEN
+        sync: false
+      - key: VERCEL_PROJECT_ID
+        sync: false
+
+  - type: worker
+    name: autobot-worker
+    env: docker
+    region: oregon
+    dockerContext: autobot
+    dockerfilePath: Dockerfile
+    plan: starter
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: REDIS_URL
+        fromService:
+          name: autobot-redis
+          type: redis
+          property: connectionString
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
+      - key: GITHUB_ALLOWED_REPOS
+        sync: false
+      - key: AUTOBOT_API_TOKEN
+        sync: false
+      - key: VERCEL_TOKEN
+        sync: false
+      - key: VERCEL_PROJECT_ID
+        sync: false
+    dockerCommand: npm run start:worker
+
+  - type: web
+    name: autobot-web
+    env: docker
+    region: oregon
+    dockerContext: autobot-web
+    dockerfilePath: Dockerfile
+    plan: starter
+    autoDeploy: true
+    healthCheckPath: /health
+    dockerCommand: npm run start
+    envVars:
+      - key: PORT
+        value: 4173
+      - key: APP_BASE_URL
+        sync: false
+      - key: GITHUB_OAUTH_CLIENT_ID
+        sync: false
+      - key: GITHUB_OAUTH_CLIENT_SECRET
+        sync: false
+      - key: AUTOBOT_WEBHOOK_URL
+        sync: false
+      - key: AUTOBOT_API_BASE_URL
+        sync: false
+      - key: AUTOBOT_API_TOKEN
+        sync: false
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
+
+  - type: redis
+    name: autobot-redis
+    plan: starter
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: all

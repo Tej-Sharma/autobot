@@ -1,0 +1,184 @@
+# Autobot — The Non-Boring Onboarding Scroll
+
+Think of this like a launch card:
+1) drop inputs
+2) click run
+3) get pages with screenshots + AI judgment
+4) let humans decide what “polish” means this week.
+
+---
+
+## Mission
+- Collect visual signals from real browsers (Playwright)
+- Keep humans in the loop with scored findings
+- Post results to API/PR + artifacts
+- Make “production-ish” behavior usable locally and in CI
+
+---
+
+## Where to put API keys / tokens (short answer)
+All secrets live in:
+- `/Users/tejas1/Documents/Code/_Constella/constella-website/autobot/.env`
+- loaded via `dotenv` in `src/config.ts`
+
+Source of truth for secret names:
+- `OPENAI_API_KEY` → visual judge
+- `GITHUB_TOKEN` → GitHub comment posting + PR metadata enrichment
+- `GITHUB_WEBHOOK_SECRET` → optional webhook signature verification
+- `VERCEL_TOKEN` → optional preview URL resolution
+- `AUTOBOT_API_TOKEN` → optional API access key (`x-api-key`)
+
+Everything else is operational config (not secrets), but keep it in `.env` too.
+
+---
+
+## Setup ritual (atypical, but explicit)
+
+```bash
+cd /Users/tejas1/Documents/Code/_Constella/constella-website/autobot
+cp .env.example .env
+```
+
+Open `.env` and fill values for the keys above.
+
+Then:
+
+```bash
+npm install
+npm run dev:server   # Terminal A
+npm run dev:worker   # Terminal B
+```
+
+If you want Docker:
+
+```bash
+docker compose up --build
+```
+
+API endpoint comes up on `http://localhost:4000`.
+
+---
+
+## Run commandbook
+
+### API call
+
+```bash
+curl -X POST http://localhost:4000/api/qa/run \
+  -H "content-type: application/json" \
+  -H "x-api-key: $AUTOBOT_API_TOKEN" \
+  -d '{
+    "environment":"production",
+    "baseUrl":"https://your-site.com",
+    "routes":["home","pricing"],
+    "mode":"smoke",
+    "includeJudge":true
+  }'
+```
+
+### Pull status + artifacts
+
+```bash
+curl http://localhost:4000/api/qa/jobs/<jobId>
+```
+
+Look under:
+- `/artifacts/<jobId>/qa-report.json`
+- `/artifacts/<jobId>/qa-report.md`
+- `/artifacts/<jobId>/<route>/<viewport>/<phase>.png`
+
+---
+
+## Flow map (what really happens)
+
+- `POST /api/qa/run` or webhook arrives
+- payload normalized + validated
+- job enqueued in BullMQ (`received` → `queued`)
+- worker pulls job and launches Chromium
+- screenshots recorded at phase boundaries:
+  - `initial-load`
+  - `primary-cta` / `primary-cta-missing`
+  - `after-interaction` (full mode)
+  - `scroll-mid`
+  - `scroll-bottom`
+- optional AI judge writes findings + score
+- report gets written (JSON + Markdown)
+- status endpoint and PR comment update with outcome
+
+---
+
+## Important keys and where they are consumed
+
+- `src/config.ts`
+  - canonical parser for env/ints/booleans/defaults
+- `src/github.ts`
+  - `GITHUB_TOKEN`, `GITHUB_WEBHOOK_SECRET`, `GITHUB_ALLOWED_REPOS`
+- `src/vercel.ts`
+  - `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`
+- `src/judge.ts`
+  - `OPENAI_API_KEY`, `OPENAI_MODEL`, timeout/retry knobs
+- `src/server.ts`
+  - `AUTOBOT_API_TOKEN`
+
+---
+
+## Production deployment shape
+
+- `api` container: request intake + status/artifacts
+- `worker` container: browser execution
+- `redis` container: queue + run status
+- shared `/app/artifacts` volume between `api` and `worker`
+
+Everything is in:
+- `/Users/tejas1/Documents/Code/_Constella/constella-website/autobot/docker-compose.yml`
+- `/Users/tejas1/Documents/Code/_Constella/constella-website/autobot/Dockerfile`
+
+### Render production mode (recommended for this stack)
+
+Render can run this in a durable way with `render.yaml`. Keep in mind:
+
+- For true API+worker separation with shared artifact reads, you should first replace local artifact storage with external object storage.
+- The default shipped configuration uses one Render web service running both server and worker in one container so artifacts live on the same filesystem.
+- Add Redis as a managed service (`type: redis`) and inject its connection string into `REDIS_URL`.
+- Use secret values for keys (OpenAI / GitHub / Vercel / webhook token).
+
+If you place `render.yaml` at repo root and push to the branch connected to Render, deployment is straightforward.
+
+```bash
+# One-shot deploy model (single Render web service)
+npm run build
+```
+
+Use `autobot` folder as service path in the blueprint and run:
+
+```bash
+node dist/server.js & node dist/worker.js; wait
+```
+
+That is what `start:all` does in:
+`/Users/tejas1/Documents/Code/_Constella/constella-website/autobot/package.json`
+
+If you later split into dedicated services, switch `startCommand` to launch only:
+- web service: `npm run start`
+- worker service: `npm run start:worker`
+
+and add object storage for artifacts before enabling shared paths across services.
+
+---
+
+## Too complex / many tokens? Use our self hosted version here (link; [autobot.it.com](https://autobot.it.com)) to brrr our VC tokens instead
+
+If you don’t want to wire OpenAI/Vercel/GitHub app credentials now, use:
+- hosted execution path on [autobot.it.com](https://autobot.it.com)
+- team/project-scoped token handling
+- fewer local secret dependencies for first-pass validation
+
+You can still run local dry-runs first, then migrate to hosted once behavior is approved.
+
+---
+
+## Notes
+
+- Keep `.env` out of git.
+- `GITHUB_ALLOWED_REPOS` can stay empty for no allowlist.
+- If artifact retention is noisy, tune retention and mount a bigger/shared filesystem.

@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60 1", "--loglevel", "warning"]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    ports:
+      - '6379:6379'
+
+  api:
+    build: .
+    image: autobot-api
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - '4000:4000'
+    env_file:
+      - ./.env
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - PORT=4000
+    volumes:
+      - autobot_artifacts:/app/artifacts
+    command: ["node", "dist/server.js"]
+
+  worker:
+    build: .
+    image: autobot-worker
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    env_file:
+      - ./.env
+    environment:
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - autobot_artifacts:/app/artifacts
+    command: ["node", "dist/worker.js"]
+
+volumes:
+  autobot_artifacts:

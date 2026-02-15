@@ -1,0 +1,8 @@
+node_modules/
+autobot/node_modules/
+autobot-web/node_modules/
+dist/
+autobot/dist/
+autobot-web/dist/
+.DS_Store
+*.log
