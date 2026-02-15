@@ -6,3 +6,9 @@ autobot/dist/
 autobot-web/dist/
 .DS_Store
 *.log
+autobot/.env
+autobot/.env.*
+autobot-web/.env
+autobot-web/.env.*
+!autobot/.env.example
+!autobot-web/.env.example

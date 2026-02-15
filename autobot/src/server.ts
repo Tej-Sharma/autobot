@@ -9,6 +9,7 @@ import { parseRunPayload, normalizeRequestForExecution } from './runnerConfig';
 import { enqueueRun } from './queue';
 import { getJobStatus } from './state';
 import { isRepoAllowed, parseWebhookRun } from './github';
+import { upsertRepoTokenMappings } from './repoTokens';
 
 const app = express();
 const rawGithub = express.raw({ type: 'application/json', limit: '4mb' });
@@ -111,6 +112,37 @@ app.get('/api/qa/jobs/:jobId', async (req, res) => {
     reportUrl: `${base}/artifacts/${jobId}/qa-report.json`,
     reportMarkdownUrl: `${base}/artifacts/${jobId}/qa-report.md`,
   });
+});
+
+app.post('/api/integrations/repo-tokens', jsonBody, async (req, res) => {
+  if (!verifyApiToken(req)) {
+    res.status(401).json({ error: 'unauthorized' });
+    return;
+  }
+
+  const rawRepos = Array.isArray(req.body?.repos) ? req.body.repos : [];
+  const repos = rawRepos
+    .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+    .filter((entry) => entry.includes('/'));
+
+  const actor = typeof req.body?.actor === 'string' ? req.body.actor.trim() : '';
+  const accessToken = typeof req.body?.accessToken === 'string' ? req.body.accessToken.trim() : '';
+
+  if (!actor || !accessToken || repos.length === 0) {
+    res.status(400).json({ error: 'actor, accessToken, and repos[] are required' });
+    return;
+  }
+
+  try {
+    const result = await upsertRepoTokenMappings(repos, actor, accessToken);
+    res.json({
+      ok: result.failed.length === 0,
+      updated: result.updated,
+      failed: result.failed,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'token registration failed' });
+  }
 });
 
 app.post('/api/github/webhook', rawGithub, async (req, res) => {

@@ -16,17 +16,36 @@ Think of this like a launch card:
 
 ---
 
-## Where to put API keys / tokens (short answer)
-All secrets live in:
-- `autobot/.env` (at repo root: `/Users/tejas1/Documents/Code/_Constella/autobot-codes/autobot/.env`)
-- loaded via `dotenv` in `src/config.ts`
+## Open-source + self-hosted setup
 
-Source of truth for secret names:
+This service is self-hosting ready and OSS-friendly:
+- No secrets are hard-coded in tracked source files.
+- Secrets are loaded from local env files and process environment at runtime.
+- Use local secret files only for development, and platform secret stores for production.
+- Keep all env files out of version control.
+
+Quick setup:
+1. Copy `autobot/.env.example` to `autobot/.env`.
+2. Fill your values and start locally with `npm run dev:server` / `npm run dev:worker`, or `docker compose up --build`.
+3. In production, inject env vars from your deployment secret store (Render/Railsway/Fly/etc.) instead of shipping `.env`.
+
+Environment key locations:
+- `autobot/.env` (`autobot/src/config.ts`)
+- `autobot-web/.env` (`autobot-web/src/server.ts`)
+
+Source of truth for secret names in `autobot/.env`:
 - `OPENAI_API_KEY` → visual judge
-- `GITHUB_TOKEN` → GitHub comment posting + PR metadata enrichment
+- `GITHUB_TOKEN` → optional fallback GitHub credential for comment posting + PR metadata enrichment
+- `POST /api/integrations/repo-tokens` receives user OAuth tokens for self-serve PR posting
 - `GITHUB_WEBHOOK_SECRET` → optional webhook signature verification
 - `VERCEL_TOKEN` → optional preview URL resolution
 - `AUTOBOT_API_TOKEN` → optional API access key (`x-api-key`)
+
+Source of secret names in `autobot-web/.env`:
+- `GITHUB_OAUTH_CLIENT_ID`
+- `GITHUB_OAUTH_CLIENT_SECRET`
+- `GITHUB_WEBHOOK_SECRET`
+- `AUTOBOT_API_TOKEN` (optional, when backend API tokening is enabled)
 
 Everything else is operational config (not secrets), but keep it in `.env` too.
 
@@ -166,7 +185,7 @@ and add object storage for artifacts before enabling shared paths across service
 
 ---
 
-## Too complex / many tokens? Use our self hosted version here (link; [autobot.it.com](https://autobot.it.com)) to brrr our VC tokens instead
+## Too complex / many tokens? Use our self hosted version here (link; [autobot.it.com](https://autobot.it.com)) to broker our Vercel tokens instead
 
 If you don’t want to wire OpenAI/Vercel/GitHub app credentials now, use:
 - hosted execution path on [autobot.it.com](https://autobot.it.com)

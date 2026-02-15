@@ -8,7 +8,7 @@ import { resolvePreviewUrl } from './vercel';
 import { runVisualChecks } from './screenshotRunner';
 import { judgeScreenshots } from './judge';
 import { aggregateRunTotals, buildPrComment, writeJsonReport, writeMarkdownReport } from './reporter';
-import { postGithubComment } from './github';
+import { postGithubCommentForActor } from './github';
 
 export interface ExecutionResult {
   reportPath: string;
@@ -142,7 +142,7 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
     if (payload.repo && payload.prNumber && payload.source === 'github') {
       const comment = buildPrComment(report);
       try {
-        await postGithubComment(payload.repo.owner, payload.repo.name, payload.prNumber, comment);
+        await postGithubCommentForActor(payload.repo.owner, payload.repo.name, payload.prNumber, comment, payload.actor);
       } catch (commentError) {
         console.error('[runner] failed to post GitHub comment', commentError);
       }
@@ -200,7 +200,7 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
     if (payload.repo && payload.prNumber && payload.source === 'github') {
       const comment = buildPrComment(fallback);
       try {
-        await postGithubComment(payload.repo.owner, payload.repo.name, payload.prNumber, comment);
+        await postGithubCommentForActor(payload.repo.owner, payload.repo.name, payload.prNumber, comment, payload.actor);
       } catch {
         // ignore
       }

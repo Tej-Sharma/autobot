@@ -70,6 +70,12 @@ type RunNowResult = {
   statusUrl?: string;
 };
 
+type RepoTokenSyncResult = {
+  ok: boolean;
+  updated: string[];
+  failed: string[];
+};
+
 const app = express();
 const webPublicPath = path.resolve(process.cwd(), 'public');
 
@@ -203,6 +209,29 @@ const cleanStores = () => {
 
 const normalizeUrl = (value: string) => value.trim().replace(/\/$/, '');
 
+const callAutobotApi = async <T>(path: string, body: unknown): Promise<T> => {
+  if (!AUTOBOT_API_BASE_URL) {
+    throw new Error('AUTOBOT_API_BASE_URL is not configured');
+  }
+
+  const response = await fetch(`${normalizeUrl(AUTOBOT_API_BASE_URL)}${path}`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      ...(AUTOBOT_API_TOKEN ? { 'x-api-key': AUTOBOT_API_TOKEN } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+  const payload = await response.json().catch(() => ({ error: 'Invalid JSON response' }));
+  if (!response.ok) {
+    const message = (payload as { error?: string }).error;
+    throw new Error(message || `Autobot API error: ${response.status}`);
+  }
+
+  return payload as T;
+};
+
 const runNowMode = (value: unknown): 'minimal' | 'smoke' | 'full' => {
   if (typeof value !== 'string') return 'smoke';
   const lowered = value.toLowerCase();
@@ -217,10 +246,6 @@ const postRunToAutobot = async (
   mode: 'minimal' | 'smoke' | 'full',
   includeJudge: boolean,
 ) => {
-  if (!AUTOBOT_API_BASE_URL) {
-    throw new Error('AUTOBOT_API_BASE_URL is not configured');
-  }
-
   const payload = {
     environment: 'custom' as const,
     baseUrl,
@@ -235,21 +260,25 @@ const postRunToAutobot = async (
     },
   };
 
-  const response = await fetch(`${normalizeUrl(AUTOBOT_API_BASE_URL)}/api/qa/run`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      ...(AUTOBOT_API_TOKEN ? { 'x-api-key': AUTOBOT_API_TOKEN } : {}),
-    },
-    body: JSON.stringify(payload),
+  return callAutobotApi('/api/qa/run', payload);
+};
+
+const registerRepoTokensWithAutobot = async (
+  repos: string[],
+  actor: string,
+  accessToken: string,
+): Promise<RepoTokenSyncResult> => {
+  const response = await callAutobotApi<RepoTokenSyncResult>('/api/integrations/repo-tokens', {
+    repos,
+    actor,
+    accessToken,
   });
 
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(body.error || `Autobot API error: ${response.status}`);
+  if (typeof response.ok !== 'boolean') {
+    return { ok: false, updated: [], failed: repos };
   }
 
-  return body;
+  return response;
 };
 
 setInterval(cleanStores, 5 * 60 * 1000);
@@ -531,10 +560,27 @@ app.post('/api/webhooks/sync', async (req, res) => {
   );
 
   const failed = outcomes.filter((entry) => entry.status === 'failed').length;
+  let tokenSync: { ok: boolean; updated: string[]; failed: string[]; error?: string } = {
+    ok: true,
+    updated: [],
+    failed: [],
+  };
+
+  try {
+    tokenSync = await registerRepoTokensWithAutobot(cleanedRepos, session.user.login, session.accessToken);
+  } catch (error) {
+    tokenSync = {
+      ok: false,
+      updated: [],
+      failed: cleanedRepos,
+      error: error instanceof Error ? error.message : 'Failed to register repository token',
+    };
+  }
 
   res.json({
-    ok: failed === 0,
+    ok: failed === 0 && tokenSync.ok,
     results: outcomes,
+    tokenSync,
   });
 });
 
@@ -569,6 +615,23 @@ app.post('/api/runs/default-branch', async (req, res) => {
     return;
   }
 
+  let tokenSync: { ok: boolean; updated: string[]; failed: string[]; error?: string } = {
+    ok: true,
+    updated: [],
+    failed: [],
+  };
+
+  try {
+    tokenSync = await registerRepoTokensWithAutobot(repos, session.user.login, session.accessToken);
+  } catch (error) {
+    tokenSync = {
+      ok: false,
+      updated: [],
+      failed: repos,
+      error: error instanceof Error ? error.message : 'Failed to register repository token',
+    };
+  }
+
   const outcomes: RunNowResult[] = [];
 
   await Promise.all(
@@ -600,8 +663,9 @@ app.post('/api/runs/default-branch', async (req, res) => {
 
   const failed = outcomes.filter((entry) => entry.status === 'failed').length;
   res.json({
-    ok: failed === 0,
+    ok: failed === 0 && tokenSync.ok,
     results: outcomes,
+    tokenSync,
   });
 });
 

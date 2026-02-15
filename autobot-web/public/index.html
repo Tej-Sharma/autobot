@@ -463,6 +463,12 @@
           const lines = result.results.map(
             (entry) => `${entry.repo}: ${entry.status.replaceAll('_', ' ').replace(/\b\w/g, (match) => match.toUpperCase())} - ${entry.message}`,
           );
+          if (result.tokenSync && !result.tokenSync.ok) {
+            const failed = Array.isArray(result.tokenSync.failed) ? result.tokenSync.failed.join(', ') : '';
+            lines.push(
+              `Token sync failed${failed ? ` for ${failed}` : ''}; PR commenting may use fallback token.`,
+            );
+          }
           syncResult.innerHTML = lines.map((line) => `<div>${line}</div>`).join('');
         } catch (error) {
           syncResult.textContent = error.message || 'Failed to sync webhooks';
@@ -511,6 +517,12 @@
             const link = entry.statusUrl ? ` <a class="underline" href="${entry.statusUrl}" target="_blank">status</a>` : '';
             return `${entry.repo}: ${state} - ${entry.message}${link ? ` (${link})` : ''}`;
           });
+          if (result.tokenSync && !result.tokenSync.ok) {
+            const failed = Array.isArray(result.tokenSync.failed) ? result.tokenSync.failed.join(', ') : '';
+            lines.push(
+              `Token sync failed${failed ? ` for ${failed}` : ''}; PR comments may use fallback token.`,
+            );
+          }
 
           syncResult.innerHTML = lines.map((line) => `<div>${line}</div>`).join('');
         } catch (error) {

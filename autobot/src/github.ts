@@ -3,8 +3,10 @@ import { Octokit } from '@octokit/rest';
 import { parseCommaSeparated } from './utils';
 import { parseRunPayload, normalizeRequestForExecution } from './runnerConfig';
 import { RunRequest } from './types';
+import { getRepoTokenForActor } from './repoTokens';
 
-const octokit = CONFIG.githubToken ? new Octokit({ auth: CONFIG.githubToken }) : null;
+const fallbackOctokit = CONFIG.githubToken ? new Octokit({ auth: CONFIG.githubToken }) : null;
+const tokenizedOctokit = (token?: string): Octokit | null => (token ? new Octokit({ auth: token }) : null);
 
 export function isRepoAllowed(owner: string, repo: string): boolean {
   if (CONFIG.githubAllowedRepos.size === 0) return true;
@@ -83,26 +85,40 @@ export function parseQaCommandComment(commentBody: string): RunRequest | null {
   return normalized;
 }
 
+function repoIdentifier(owner: string, repo: string): string {
+  return `${owner}/${repo}`.toLowerCase();
+}
+
 async function fetchPullMetadata(
   owner: string,
   repo: string,
   pullNumber: number,
+  preferredActor?: string,
 ): Promise<{ branch?: string; sha?: string } | null> {
-  if (!octokit) return null;
-  try {
-    const response = await octokit.rest.pulls.get({
-      owner,
-      repo,
-      pull_number: pullNumber,
-    });
-    return {
-      branch: response.data.head.ref,
-      sha: response.data.head.sha,
-    };
-  } catch (error) {
-    console.warn('[github] could not enrich pull request metadata', error);
-    return null;
+  const actorToken = preferredActor ? await getRepoTokenForActor(repoIdentifier(owner, repo), preferredActor) : undefined;
+  const clients = [tokenizedOctokit(actorToken), fallbackOctokit];
+
+  for (const client of clients) {
+    if (!client) continue;
+    try {
+      const response = await client.rest.pulls.get({
+        owner,
+        repo,
+        pull_number: pullNumber,
+      });
+      return {
+        branch: response.data.head.ref,
+        sha: response.data.head.sha,
+      };
+    } catch (error) {
+      // Try fallback on failure.
+      if (client === fallbackOctokit) {
+        console.warn('[github] could not enrich pull request metadata', error);
+      }
+    }
   }
+
+  return null;
 }
 
 export async function parseWebhookRun(payload: any): Promise<RunRequest | null> {
@@ -121,6 +137,7 @@ export async function parseWebhookRun(payload: any): Promise<RunRequest | null> 
 
   const incomingPull = payload.issue?.number ? Number(payload.issue?.number) : undefined;
   const issueIsPr = !!payload.issue?.pull_request;
+  const actor = payload.sender?.login;
 
   const existingMetadata = request.sourceMetadata || {};
   const requestBranch = request.branch;
@@ -128,14 +145,14 @@ export async function parseWebhookRun(payload: any): Promise<RunRequest | null> 
   let branch = requestBranch;
   let sha = requestSha;
 
-  if (issueIsPr && (!branch || !sha) && incomingPull && octokit) {
-    const pullInfo = await fetchPullMetadata(owner, name, incomingPull);
+  if (issueIsPr && (!branch || !sha) && incomingPull) {
+    const pullInfo = await fetchPullMetadata(owner, name, incomingPull, actor);
     if (!branch) branch = pullInfo?.branch;
     if (!sha) sha = pullInfo?.sha;
   } else if (!branch && payload.pull_request?.head?.ref) {
     branch = payload.pull_request.head.ref;
   } else if (!sha && payload.pull_request?.head?.sha) {
-    sha = payload.pull_request.head.sha;
+    sha = payload.pull_request.head?.sha;
   }
 
   if (!request.baseUrl) {
@@ -152,7 +169,7 @@ export async function parseWebhookRun(payload: any): Promise<RunRequest | null> 
     source: 'github',
     sourceMetadata: {
       commentId: payload.comment?.id,
-      actor: payload.sender?.login,
+      actor,
       installationId: payload.installation?.id,
       requestType: 'issue_comment',
       repository: `${owner}/${name}`,
@@ -164,7 +181,7 @@ export async function parseWebhookRun(payload: any): Promise<RunRequest | null> 
     sha,
     repo: owner && name ? { owner, name } : undefined,
     prNumber: payload.issue?.number,
-    actor: payload.sender?.login,
+    actor,
   };
 
   if (!issueIsPr && result.environment === 'preview') {
@@ -174,15 +191,39 @@ export async function parseWebhookRun(payload: any): Promise<RunRequest | null> 
   return result;
 }
 
-export async function postGithubComment(owner: string, repo: string, issueNumber: number, body: string): Promise<void> {
-  if (!octokit) {
-    return;
-  }
+export async function postGithubComment(
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  body: string,
+): Promise<void> {
+  await postGithubCommentForActor(owner, repo, issueNumber, body);
+}
 
-  await octokit.rest.issues.createComment({
-    owner,
-    repo,
-    issue_number: issueNumber,
-    body,
-  });
+export async function postGithubCommentForActor(
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  body: string,
+  actor?: string,
+): Promise<void> {
+  const actorToken = actor ? await getRepoTokenForActor(repoIdentifier(owner, repo), actor) : undefined;
+  const clients = [tokenizedOctokit(actorToken), fallbackOctokit];
+
+  for (const client of clients) {
+    if (!client) continue;
+    try {
+      await client.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body,
+      });
+      return;
+    } catch (error) {
+      if (client === fallbackOctokit) {
+        throw error;
+      }
+    }
+  }
 }

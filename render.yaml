@@ -6,9 +6,8 @@ services:
     plan: starter
     branch: development
     autoDeploy: true
-    dockerContext: .
-    dockerfilePath: autobot/Dockerfile
-    dockerCommand: npm run start
+    dockerContext: autobot
+    dockerfilePath: Dockerfile
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
@@ -45,9 +44,8 @@ services:
     region: oregon
     plan: starter
     autoDeploy: true
-    dockerContext: .
-    dockerfilePath: autobot/Dockerfile
-    dockerCommand: npm run start:worker
+    dockerContext: autobot
+    dockerfilePath: Dockerfile
     envVars:
       - key: NODE_ENV
         value: production
@@ -80,23 +78,22 @@ services:
     branch: development
     plan: starter
     autoDeploy: true
-    dockerContext: .
-    dockerfilePath: autobot-web/Dockerfile
-    dockerCommand: npm run start
+    dockerContext: autobot-web
+    dockerfilePath: Dockerfile
     healthCheckPath: /health
     envVars:
       - key: PORT
         value: 4173
       - key: APP_BASE_URL
-        sync: false
+        value: https://autobot.it.com
       - key: GITHUB_OAUTH_CLIENT_ID
         sync: false
       - key: GITHUB_OAUTH_CLIENT_SECRET
         sync: false
       - key: AUTOBOT_WEBHOOK_URL
-        sync: false
+        value: https://autobot-er1m.onrender.com/api/github/webhook
       - key: AUTOBOT_API_BASE_URL
-        sync: false
+        value: https://autobot-er1m.onrender.com
       - key: AUTOBOT_API_TOKEN
         sync: false
       - key: GITHUB_WEBHOOK_SECRET

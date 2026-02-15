@@ -1,12 +1,12 @@
 FROM node:20-bullseye AS base
 WORKDIR /app
 
-COPY autobot-web/package.json autobot-web/package-lock.json* autobot-web/tsconfig.json ./
+COPY package.json package-lock.json* tsconfig.json ./
 
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
-COPY autobot-web/public ./public
-COPY autobot-web/src ./src
+COPY public ./public
+COPY src ./src
 
 RUN npm run build
 
