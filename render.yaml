@@ -4,6 +4,7 @@ services:
     env: docker
     region: oregon
     plan: starter
+    branch: development
     autoDeploy: true
     dockerContext: autobot
     dockerfilePath: Dockerfile
@@ -76,6 +77,7 @@ services:
     name: autobot-web
     env: docker
     region: oregon
+    branch: development
     plan: starter
     autoDeploy: true
     dockerContext: autobot-web
