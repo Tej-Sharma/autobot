@@ -331,7 +331,8 @@
       document.documentElement.classList.add('dark');
       localStorage.setItem('theme', 'dark');
 
-      const authReturnBase = '/';
+      const authReturnBase = '/?auth=success';
+      const postAuthSuccess = new URLSearchParams(window.location.search).get('auth') === 'success';
       const api = async (url, options = {}) => {
         const response = await fetch(url, {
           headers: {
@@ -441,6 +442,9 @@
         const session = await api('/api/session').catch(() => ({ authenticated: false }));
         if (session?.authenticated) {
           await loadDashboardData();
+          if (postAuthSuccess) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
           return;
         }
         showLanding();

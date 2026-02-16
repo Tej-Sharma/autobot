@@ -118,6 +118,20 @@ const buildUrl = (req: express.Request, value: string): string => {
   return `${base}${value.startsWith('/') ? value : `/${value}`}`;
 };
 
+const normalizeReturnTo = (value: string | undefined, fallback: string): string => {
+  const trimmed = value?.trim();
+  if (!trimmed) return fallback;
+
+  try {
+    const parsed = new URL(trimmed, 'https://local.autobot');
+    const normalized = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    if (!normalized || !normalized.startsWith('/')) return fallback;
+    return normalized;
+  } catch {
+    return fallback;
+  }
+};
+
 const setSessionCookie = (res: express.Response, sessionId: string, req: express.Request) => {
   const isSecure = req.secure || req.header('x-forwarded-proto') === 'https';
   const expires = new Date(now() + SESSION_TTL_MS).toUTCString();
@@ -311,7 +325,10 @@ export const registerConsoleRoutes = (app: express.Express, jsonBody: express.Re
     }
 
     const state = crypto.randomUUID();
-    const returnTo = typeof req.query.returnTo === 'string' && req.query.returnTo.length ? req.query.returnTo : '/';
+    const returnTo = normalizeReturnTo(
+      typeof req.query.returnTo === 'string' ? req.query.returnTo : undefined,
+      '/?auth=success',
+    );
 
     authStateStore.set(state, {
       returnTo,

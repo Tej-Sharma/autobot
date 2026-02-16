@@ -12,9 +12,24 @@ const AUTOBOT_API_BASE_URL = process.env.AUTOBOT_API_BASE_URL?.replace(/\/$/, ''
 
 const toHeaderList = (headers: Headers) => Array.from(headers.entries());
 
-const getSetCookies = (headers: Headers) => {
-  const anyHeaders = headers as Headers & { getSetCookie?: () => string[] };
-  return anyHeaders.getSetCookie?.() || [];
+const getSetCookieHeaders = (headers: Headers): string[] => {
+  const typedHeaders = headers as Headers & {
+    getSetCookie?: () => string[];
+    raw?: () => Record<string, string[]>;
+  };
+
+  if (typeof typedHeaders.getSetCookie === 'function') {
+    return typedHeaders.getSetCookie();
+  }
+
+  const single = headers.get('set-cookie');
+  if (single) return [single];
+
+  const raw = typedHeaders.raw?.();
+  if (!raw) return [];
+  const fromRaw = raw['set-cookie'];
+  if (!fromRaw) return [];
+  return Array.isArray(fromRaw) ? fromRaw : [fromRaw];
 };
 
 const parseProxyTarget = (pathname: string): string => {
@@ -61,7 +76,7 @@ app.use('/api', async (req, res) => {
       res.setHeader(key, value);
     }
 
-    const setCookies = getSetCookies(response.headers);
+    const setCookies = getSetCookieHeaders(response.headers);
     if (setCookies.length > 0) {
       res.setHeader('Set-Cookie', setCookies);
     }
