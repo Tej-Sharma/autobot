@@ -142,7 +142,8 @@ const setSessionCookie = (
   sessionId: string,
   req: express.Request,
 ) => {
-  const isSecure = req.secure || req.header("x-forwarded-proto") === "https";
+  const forwardedProto = req.header("x-forwarded-proto")?.split(",")[0]?.trim();
+  const isSecure = req.secure || forwardedProto === "https";
   const expires = new Date(now() + SESSION_TTL_MS).toUTCString();
   const cookie = [
     `${SESSION_COOKIE_NAME}=${encodeURIComponent(sessionId)}`,
@@ -441,7 +442,7 @@ export const registerConsoleRoutes = (
 
       sessionStore.set(sessionId, session);
       setSessionCookie(res, sessionId, req);
-      res.redirect(buildUrl(req, stateData.returnTo));
+      res.redirect(stateData.returnTo);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       res.status(500).send(message);

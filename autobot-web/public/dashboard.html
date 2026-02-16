@@ -201,7 +201,15 @@
       };
 
       const loadDashboardData = async () => {
-        const session = await api('/api/session');
+        const readSession = async () =>
+          api('/api/session').catch(() => ({ authenticated: false }));
+
+        let session = await readSession();
+        if (!session.authenticated) {
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          session = await readSession();
+        }
+
         if (!session.authenticated) {
           window.location.href = '/';
           return;
