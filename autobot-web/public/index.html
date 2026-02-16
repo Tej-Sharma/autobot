@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
@@ -328,13 +328,8 @@
 	    </footer>
 
     <script>
-      const themeState = localStorage.theme;
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      if (themeState === 'dark' || (!themeState && prefersDark)) {
-        document.documentElement.classList.add('dark');
-      } else if (themeState === 'light') {
-        document.documentElement.classList.remove('dark');
-      }
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
 
       const authReturnBase = '/';
       const api = async (url, options = {}) => {
