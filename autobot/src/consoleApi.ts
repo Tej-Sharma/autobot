@@ -1,12 +1,12 @@
-import crypto from 'node:crypto';
-import express from 'express';
-import { CONFIG } from './config';
-import { enqueueRun } from './queue';
-import { normalizeRequestForExecution } from './runnerConfig';
-import { upsertRepoTokenMappings } from './repoTokens';
-import { RunMode, RunRequest } from './types';
+import crypto from "node:crypto";
+import express from "express";
+import { CONFIG } from "./config";
+import { enqueueRun } from "./queue";
+import { normalizeRequestForExecution } from "./runnerConfig";
+import { upsertRepoTokenMappings } from "./repoTokens";
+import { RunMode, RunRequest } from "./types";
 
-export const REGISTERED_CONSOLE_PREFIX = '/api';
+export const REGISTERED_CONSOLE_PREFIX = "/api";
 
 type GithubUser = {
   id: number;
@@ -61,7 +61,7 @@ type AuthState = {
 
 type SyncResult = {
   repo: string;
-  status: 'created' | 'updated' | 'already_configured' | 'failed';
+  status: "created" | "updated" | "already_configured" | "failed";
   message: string;
 };
 
@@ -74,17 +74,17 @@ type RepoTokenSyncResult = {
 
 type RunNowResult = {
   repo: string;
-  status: 'queued' | 'failed';
+  status: "queued" | "failed";
   message: string;
   jobId?: string;
   statusUrl?: string;
 };
 
-const SESSION_COOKIE_NAME = 'autobot_web_session';
-const SESSION_TTL_MS = Number(process.env.SESSION_TTL_MS || '604800000');
-const AUTH_STATE_TTL_MS = Number(process.env.AUTH_STATE_TTL_MS || '900000');
-const REQUIRED_SCOPE = 'repo';
-const HOOK_EVENTS = ['pull_request', 'issue_comment'];
+const SESSION_COOKIE_NAME = "autobot_web_session";
+const SESSION_TTL_MS = Number(process.env.SESSION_TTL_MS || "604800000");
+const AUTH_STATE_TTL_MS = Number(process.env.AUTH_STATE_TTL_MS || "900000");
+const REQUIRED_SCOPE = "repo";
+const HOOK_EVENTS = ["pull_request", "issue_comment"];
 
 const CLIENT_ID = process.env.GITHUB_OAUTH_CLIENT_ID;
 const CLIENT_SECRET = process.env.GITHUB_OAUTH_CLIENT_SECRET;
@@ -97,13 +97,15 @@ const authStateStore = new Map<string, AuthState>();
 
 const now = (): number => Date.now();
 
-const parseCookies = (cookieHeader: string | undefined): Record<string, string> => {
+const parseCookies = (
+  cookieHeader: string | undefined,
+): Record<string, string> => {
   if (!cookieHeader) return {};
-  return cookieHeader.split(';').reduce<Record<string, string>>((acc, part) => {
-    const [rawKey, ...rest] = part.trim().split('=');
+  return cookieHeader.split(";").reduce<Record<string, string>>((acc, part) => {
+    const [rawKey, ...rest] = part.trim().split("=");
     if (!rawKey) return acc;
     const key = decodeURIComponent(rawKey);
-    const value = decodeURIComponent(rest.join('=') || '');
+    const value = decodeURIComponent(rest.join("=") || "");
     acc[key] = value;
     return acc;
   }, {});
@@ -111,47 +113,54 @@ const parseCookies = (cookieHeader: string | undefined): Record<string, string> 
 
 const buildUrl = (req: express.Request, value: string): string => {
   const base = APP_BASE_URL
-    ? APP_BASE_URL.replace(/\/$/, '')
-    : `${(req.get('x-forwarded-proto')?.split(',')[0] || req.protocol || 'https')}://${
-        req.get('x-forwarded-host') || req.get('host')
+    ? APP_BASE_URL.replace(/\/$/, "")
+    : `${req.get("x-forwarded-proto")?.split(",")[0] || req.protocol || "https"}://${
+        req.get("x-forwarded-host") || req.get("host")
       }`;
-  return `${base}${value.startsWith('/') ? value : `/${value}`}`;
+  return `${base}${value.startsWith("/") ? value : `/${value}`}`;
 };
 
-const normalizeReturnTo = (value: string | undefined, fallback: string): string => {
+const normalizeReturnTo = (
+  value: string | undefined,
+  fallback: string,
+): string => {
   const trimmed = value?.trim();
   if (!trimmed) return fallback;
 
   try {
-    const parsed = new URL(trimmed, 'https://local.autobot');
+    const parsed = new URL(trimmed, "https://local.autobot");
     const normalized = `${parsed.pathname}${parsed.search}${parsed.hash}`;
-    if (!normalized || !normalized.startsWith('/')) return fallback;
+    if (!normalized || !normalized.startsWith("/")) return fallback;
     return normalized;
   } catch {
     return fallback;
   }
 };
 
-const setSessionCookie = (res: express.Response, sessionId: string, req: express.Request) => {
-  const isSecure = req.secure || req.header('x-forwarded-proto') === 'https';
+const setSessionCookie = (
+  res: express.Response,
+  sessionId: string,
+  req: express.Request,
+) => {
+  const isSecure = req.secure || req.header("x-forwarded-proto") === "https";
   const expires = new Date(now() + SESSION_TTL_MS).toUTCString();
   const cookie = [
     `${SESSION_COOKIE_NAME}=${encodeURIComponent(sessionId)}`,
-    'Path=/',
-    'HttpOnly',
-    'SameSite=Lax',
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
     `Expires=${expires}`,
     `Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`,
-    isSecure ? 'Secure' : '',
+    isSecure ? "Secure" : "",
   ]
     .filter(Boolean)
-    .join('; ');
-  res.setHeader('Set-Cookie', cookie);
+    .join("; ");
+  res.setHeader("Set-Cookie", cookie);
 };
 
 const clearSessionCookie = (res: express.Response) => {
   res.setHeader(
-    'Set-Cookie',
+    "Set-Cookie",
     `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT;`,
   );
 };
@@ -173,12 +182,16 @@ const getSession = (req: express.Request): Session | null => {
 };
 
 const apiHeaders = (accessToken: string) => ({
-  Accept: 'application/vnd.github+json',
+  Accept: "application/vnd.github+json",
   Authorization: `Bearer ${accessToken}`,
-  'User-Agent': 'autobot',
+  "User-Agent": "autobot",
 });
 
-const ghGet = async <T>(accessToken: string, url: string, init: RequestInit = {}): Promise<T> => {
+const ghGet = async <T>(
+  accessToken: string,
+  url: string,
+  init: RequestInit = {},
+): Promise<T> => {
   const response = await fetch(url, {
     ...init,
     headers: {
@@ -198,7 +211,7 @@ const ghGet = async <T>(accessToken: string, url: string, init: RequestInit = {}
 };
 
 const githubOauthError = (message: string, extra?: unknown): never => {
-  throw new Error(message + (extra ? ` (${JSON.stringify(extra)})` : ''));
+  throw new Error(message + (extra ? ` (${JSON.stringify(extra)})` : ""));
 };
 
 const cleanStores = () => {
@@ -217,9 +230,13 @@ const cleanStores = () => {
   }
 };
 
-const normalizeUrl = (value: string) => value.trim().replace(/\/$/, '');
+const normalizeUrl = (value: string) => value.trim().replace(/\/$/, "");
 
-const registerRepoTokensWithAutobot = async (repos: string[], actor: string, accessToken: string): Promise<RepoTokenSyncResult> => {
+const registerRepoTokensWithAutobot = async (
+  repos: string[],
+  actor: string,
+  accessToken: string,
+): Promise<RepoTokenSyncResult> => {
   const result = await upsertRepoTokenMappings(repos, actor, accessToken);
   return {
     ok: result.failed.length === 0,
@@ -229,9 +246,11 @@ const registerRepoTokensWithAutobot = async (repos: string[], actor: string, acc
 };
 
 const runNowMode = (value: unknown): RunMode => {
-  if (typeof value !== 'string') return 'smoke';
+  if (typeof value !== "string") return "smoke";
   const lowered = value.toLowerCase();
-  return lowered === 'minimal' || lowered === 'smoke' || lowered === 'full' ? lowered : 'smoke';
+  return lowered === "minimal" || lowered === "smoke" || lowered === "full"
+    ? lowered
+    : "smoke";
 };
 
 const postRunToAutobot = async (
@@ -243,13 +262,13 @@ const postRunToAutobot = async (
   includeJudge: boolean,
   req: express.Request,
 ) => {
-  const [owner, name] = repo.split('/');
+  const [owner, name] = repo.split("/");
   if (!owner || !name) {
     throw new Error(`Invalid repository name: ${repo}`);
   }
 
   const request = normalizeRequestForExecution({
-    environment: 'custom',
+    environment: "custom",
     baseUrl,
     routes: CONFIG.defaultRoutes,
     mode,
@@ -259,9 +278,9 @@ const postRunToAutobot = async (
       owner,
       name,
     },
-    source: 'api',
+    source: "api",
     sourceMetadata: {
-      initiatedFrom: 'autobot-console',
+      initiatedFrom: "autobot-console",
       repository: repo,
       actor: sessionUser,
     },
@@ -270,7 +289,7 @@ const postRunToAutobot = async (
   });
 
   const jobId = await enqueueRun(request);
-  const base = `${req.get('x-forwarded-proto') || req.protocol}://${req.get('x-forwarded-host') || req.get('host')}`;
+  const base = `${req.get("x-forwarded-proto") || req.protocol}://${req.get("x-forwarded-host") || req.get("host")}`;
   return {
     ok: true,
     jobId,
@@ -278,18 +297,21 @@ const postRunToAutobot = async (
   };
 };
 
-export const registerConsoleRoutes = (app: express.Express, jsonBody: express.RequestHandler) => {
+export const registerConsoleRoutes = (
+  app: express.Express,
+  jsonBody: express.RequestHandler,
+) => {
   setInterval(cleanStores, 5 * 60 * 1000);
 
-  app.get('/health', (_req, res) => {
+  app.get("/health", (_req, res) => {
     res.json({
       ok: true,
-      service: 'autobot-web-console',
+      service: "autobot-web-console",
       ts: new Date().toISOString(),
     });
   });
 
-  app.get('/api/session', (req, res) => {
+  app.get("/api/session", (req, res) => {
     const session = getSession(req);
 
     if (!session) {
@@ -308,17 +330,22 @@ export const registerConsoleRoutes = (app: express.Express, jsonBody: express.Re
     });
   });
 
-  app.get('/api/auth/github', (req, res) => {
-    if (!CLIENT_ID || !CLIENT_SECRET || !GITHUB_WEBHOOK_SECRET || !AUTOBOT_WEBHOOK_URL) {
+  app.get("/api/auth/github", (req, res) => {
+    if (
+      !CLIENT_ID ||
+      !CLIENT_SECRET ||
+      !GITHUB_WEBHOOK_SECRET ||
+      !AUTOBOT_WEBHOOK_URL
+    ) {
       const missing = [
-        !CLIENT_ID && 'GITHUB_OAUTH_CLIENT_ID',
-        !CLIENT_SECRET && 'GITHUB_OAUTH_CLIENT_SECRET',
-        !GITHUB_WEBHOOK_SECRET && 'GITHUB_WEBHOOK_SECRET',
-        !AUTOBOT_WEBHOOK_URL && 'AUTOBOT_WEBHOOK_URL',
+        !CLIENT_ID && "GITHUB_OAUTH_CLIENT_ID",
+        !CLIENT_SECRET && "GITHUB_OAUTH_CLIENT_SECRET",
+        !GITHUB_WEBHOOK_SECRET && "GITHUB_WEBHOOK_SECRET",
+        !AUTOBOT_WEBHOOK_URL && "AUTOBOT_WEBHOOK_URL",
       ].filter(Boolean);
 
       res.status(500).json({
-        error: 'Server not configured for GitHub login. Missing values',
+        error: "Server not configured for GitHub login. Missing values",
         missing,
       });
       return;
@@ -326,8 +353,8 @@ export const registerConsoleRoutes = (app: express.Express, jsonBody: express.Re
 
     const state = crypto.randomUUID();
     const returnTo = normalizeReturnTo(
-      typeof req.query.returnTo === 'string' ? req.query.returnTo : undefined,
-      '/?auth=success',
+      typeof req.query.returnTo === "string" ? req.query.returnTo : undefined,
+      "/dashboard",
     );
 
     authStateStore.set(state, {
@@ -335,63 +362,69 @@ export const registerConsoleRoutes = (app: express.Express, jsonBody: express.Re
       issuedAt: now(),
     });
 
-    const redirectUri = buildUrl(req, '/api/auth/github/callback');
-    const authorizeUrl = new URL('https://github.com/login/oauth/authorize');
-    authorizeUrl.searchParams.set('client_id', CLIENT_ID);
-    authorizeUrl.searchParams.set('redirect_uri', redirectUri);
-    authorizeUrl.searchParams.set('scope', REQUIRED_SCOPE);
-    authorizeUrl.searchParams.set('state', state);
-    authorizeUrl.searchParams.set('allow_signup', 'true');
+    const redirectUri = buildUrl(req, "/api/auth/github/callback");
+    const authorizeUrl = new URL("https://github.com/login/oauth/authorize");
+    authorizeUrl.searchParams.set("client_id", CLIENT_ID);
+    authorizeUrl.searchParams.set("redirect_uri", redirectUri);
+    authorizeUrl.searchParams.set("scope", REQUIRED_SCOPE);
+    authorizeUrl.searchParams.set("state", state);
+    authorizeUrl.searchParams.set("allow_signup", "true");
 
     res.redirect(authorizeUrl.toString());
   });
 
-  app.get('/api/auth/github/callback', async (req, res) => {
-    const code = typeof req.query.code === 'string' ? req.query.code : null;
-    const state = typeof req.query.state === 'string' ? req.query.state : null;
+  app.get("/api/auth/github/callback", async (req, res) => {
+    const code = typeof req.query.code === "string" ? req.query.code : null;
+    const state = typeof req.query.state === "string" ? req.query.state : null;
 
     if (!code || !state) {
-      res.status(400).send('Invalid auth callback');
+      res.status(400).send("Invalid auth callback");
       return;
     }
 
     const stateData = authStateStore.get(state);
     if (!stateData) {
-      res.status(400).send('Invalid or expired auth state');
+      res.status(400).send("Invalid or expired auth state");
       return;
     }
 
     if (now() - stateData.issuedAt > AUTH_STATE_TTL_MS) {
       authStateStore.delete(state);
-      res.status(400).send('Auth state expired');
+      res.status(400).send("Auth state expired");
       return;
     }
 
     authStateStore.delete(state);
 
     try {
-      const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
+      const tokenResponse = await fetch(
+        "https://github.com/login/oauth/access_token",
+        {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_id: CLIENT_ID,
+            client_secret: CLIENT_SECRET,
+            code,
+            redirect_uri: buildUrl(req, "/api/auth/github/callback"),
+            state,
+          }),
         },
-        body: JSON.stringify({
-          client_id: CLIENT_ID,
-          client_secret: CLIENT_SECRET,
-          code,
-          redirect_uri: buildUrl(req, '/api/auth/github/callback'),
-          state,
-        }),
-      });
+      );
 
       const tokenPayload = await tokenResponse.json();
       if (!tokenResponse.ok || !tokenPayload?.access_token) {
-        githubOauthError('GitHub token exchange failed', tokenPayload);
+        githubOauthError("GitHub token exchange failed", tokenPayload);
       }
 
       const accessToken = tokenPayload.access_token as string;
-      const user = (await ghGet<GithubUser>(accessToken, 'https://api.github.com/user'));
+      const user = await ghGet<GithubUser>(
+        accessToken,
+        "https://api.github.com/user",
+      );
       const sessionId = crypto.randomUUID();
 
       const session: Session = {
@@ -408,14 +441,14 @@ export const registerConsoleRoutes = (app: express.Express, jsonBody: express.Re
 
       sessionStore.set(sessionId, session);
       setSessionCookie(res, sessionId, req);
-      res.redirect(stateData.returnTo);
+      res.redirect(buildUrl(req, stateData.returnTo));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       res.status(500).send(message);
     }
   });
 
-  app.post('/api/logout', (req, res) => {
+  app.post("/api/logout", (req, res) => {
     const session = getSession(req);
     if (session) {
       sessionStore.delete(session.id);
@@ -424,10 +457,10 @@ export const registerConsoleRoutes = (app: express.Express, jsonBody: express.Re
     res.json({ ok: true });
   });
 
-  app.get('/api/repos', async (req, res) => {
+  app.get("/api/repos", async (req, res) => {
     const session = getSession(req);
     if (!session) {
-      res.status(401).json({ error: 'unauthorized' });
+      res.status(401).json({ error: "unauthorized" });
       return;
     }
 
@@ -442,10 +475,12 @@ export const registerConsoleRoutes = (app: express.Express, jsonBody: express.Re
         if (!batch.length) break;
 
         repositories.push(
-          ...batch.filter((repo) => repo.permissions?.admin).map((repo) => ({
-            ...repo,
-            full_name: repo.full_name,
-          })),
+          ...batch
+            .filter((repo) => repo.permissions?.admin)
+            .map((repo) => ({
+              ...repo,
+              full_name: repo.full_name,
+            })),
         );
 
         if (batch.length < perPage) break;
@@ -466,30 +501,33 @@ export const registerConsoleRoutes = (app: express.Express, jsonBody: express.Re
         })),
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to fetch repos';
+      const message =
+        error instanceof Error ? error.message : "Unable to fetch repos";
       res.status(502).json({ error: message });
     }
   });
 
-  app.post('/api/webhooks/sync', jsonBody, async (req, res) => {
+  app.post("/api/webhooks/sync", jsonBody, async (req, res) => {
     const session = getSession(req);
     if (!session) {
-      res.status(401).json({ error: 'unauthorized' });
+      res.status(401).json({ error: "unauthorized" });
       return;
     }
 
     if (!AUTOBOT_WEBHOOK_URL) {
-      res.status(500).json({ error: 'AUTOBOT_WEBHOOK_URL is not configured' });
+      res.status(500).json({ error: "AUTOBOT_WEBHOOK_URL is not configured" });
       return;
     }
 
     const repos = Array.isArray(req.body?.repos) ? req.body.repos : [];
     const cleanedRepos = repos
-      .map((repo: string) => (typeof repo === 'string' ? repo.trim() : ''))
-      .filter((repo: string) => repo.includes('/'));
+      .map((repo: string) => (typeof repo === "string" ? repo.trim() : ""))
+      .filter((repo: string) => repo.includes("/"));
 
     if (cleanedRepos.length === 0) {
-      res.status(400).json({ error: 'At least one repository must be selected' });
+      res
+        .status(400)
+        .json({ error: "At least one repository must be selected" });
       return;
     }
 
@@ -503,17 +541,19 @@ export const registerConsoleRoutes = (app: express.Express, jsonBody: express.Re
             `https://api.github.com/repos/${fullName}/hooks?per_page=100`,
           );
 
-          const existing = existingHooks.find((hook) => hook.config?.url === AUTOBOT_WEBHOOK_URL);
+          const existing = existingHooks.find(
+            (hook) => hook.config?.url === AUTOBOT_WEBHOOK_URL,
+          );
 
           const desiredConfig = {
-            name: 'web',
+            name: "web",
             active: true,
             events: HOOK_EVENTS,
             config: {
               url: AUTOBOT_WEBHOOK_URL,
-              content_type: 'json',
+              content_type: "json",
               secret: GITHUB_WEBHOOK_SECRET,
-              insecure_ssl: '0',
+              insecure_ssl: "0",
             },
           };
 
@@ -529,7 +569,7 @@ export const registerConsoleRoutes = (app: express.Express, jsonBody: express.Re
                 session.accessToken,
                 `https://api.github.com/repos/${fullName}/hooks/${existing.id}`,
                 {
-                  method: 'PATCH',
+                  method: "PATCH",
                   body: JSON.stringify({
                     active: desiredConfig.active,
                     events: desiredConfig.events,
@@ -537,30 +577,47 @@ export const registerConsoleRoutes = (app: express.Express, jsonBody: express.Re
                   }),
                 },
               );
-              outcomes.push({ repo: fullName, status: 'updated', message: 'Existing hook updated.' });
+              outcomes.push({
+                repo: fullName,
+                status: "updated",
+                message: "Existing hook updated.",
+              });
             } else {
-              outcomes.push({ repo: fullName, status: 'already_configured', message: 'Hook already configured.' });
+              outcomes.push({
+                repo: fullName,
+                status: "already_configured",
+                message: "Hook already configured.",
+              });
             }
             return;
           }
 
-          await ghGet(session.accessToken, `https://api.github.com/repos/${fullName}/hooks`, {
-            method: 'POST',
-            body: JSON.stringify(desiredConfig),
-          });
+          await ghGet(
+            session.accessToken,
+            `https://api.github.com/repos/${fullName}/hooks`,
+            {
+              method: "POST",
+              body: JSON.stringify(desiredConfig),
+            },
+          );
 
-          outcomes.push({ repo: fullName, status: 'created', message: 'Webhook created.' });
+          outcomes.push({
+            repo: fullName,
+            status: "created",
+            message: "Webhook created.",
+          });
         } catch (error) {
           outcomes.push({
             repo: fullName,
-            status: 'failed',
-            message: error instanceof Error ? error.message : 'Failed to sync hook',
+            status: "failed",
+            message:
+              error instanceof Error ? error.message : "Failed to sync hook",
           });
         }
       }),
     );
 
-    const failed = outcomes.filter((entry) => entry.status === 'failed').length;
+    const failed = outcomes.filter((entry) => entry.status === "failed").length;
     let tokenSync: RepoTokenSyncResult = {
       ok: true,
       updated: [],
@@ -568,13 +625,20 @@ export const registerConsoleRoutes = (app: express.Express, jsonBody: express.Re
     };
 
     try {
-      tokenSync = await registerRepoTokensWithAutobot(cleanedRepos, session.user.login, session.accessToken);
+      tokenSync = await registerRepoTokensWithAutobot(
+        cleanedRepos,
+        session.user.login,
+        session.accessToken,
+      );
     } catch (error) {
       tokenSync = {
         ok: false,
         updated: [],
         failed: cleanedRepos,
-        error: error instanceof Error ? error.message : 'Failed to register repository token',
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to register repository token",
       };
     }
 
@@ -585,29 +649,33 @@ export const registerConsoleRoutes = (app: express.Express, jsonBody: express.Re
     });
   });
 
-  app.post('/api/runs/default-branch', jsonBody, async (req, res) => {
+  app.post("/api/runs/default-branch", jsonBody, async (req, res) => {
     const session = getSession(req);
     if (!session) {
-      res.status(401).json({ error: 'unauthorized' });
+      res.status(401).json({ error: "unauthorized" });
       return;
     }
 
     const rawRepos = Array.isArray(req.body?.repos) ? req.body.repos : [];
     const repos = rawRepos
-      .map((repo: string) => (typeof repo === 'string' ? repo.trim() : ''))
-      .filter((repo: string) => repo.includes('/'));
+      .map((repo: string) => (typeof repo === "string" ? repo.trim() : ""))
+      .filter((repo: string) => repo.includes("/"));
 
-    const runBaseUrl = normalizeUrl(typeof req.body?.baseUrl === 'string' ? req.body.baseUrl : '');
+    const runBaseUrl = normalizeUrl(
+      typeof req.body?.baseUrl === "string" ? req.body.baseUrl : "",
+    );
     const includeJudge = req.body?.includeJudge !== false;
     const mode = runNowMode(req.body?.mode);
 
     if (!repos.length) {
-      res.status(400).json({ error: 'At least one repository must be selected' });
+      res
+        .status(400)
+        .json({ error: "At least one repository must be selected" });
       return;
     }
 
     if (!runBaseUrl) {
-      res.status(400).json({ error: 'A base URL is required to run now' });
+      res.status(400).json({ error: "A base URL is required to run now" });
       return;
     }
 
@@ -618,13 +686,20 @@ export const registerConsoleRoutes = (app: express.Express, jsonBody: express.Re
     };
 
     try {
-      tokenSync = await registerRepoTokensWithAutobot(repos, session.user.login, session.accessToken);
+      tokenSync = await registerRepoTokensWithAutobot(
+        repos,
+        session.user.login,
+        session.accessToken,
+      );
     } catch (error) {
       tokenSync = {
         ok: false,
         updated: [],
         failed: repos,
-        error: error instanceof Error ? error.message : 'Failed to register repository token',
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to register repository token",
       };
     }
 
@@ -638,7 +713,7 @@ export const registerConsoleRoutes = (app: express.Express, jsonBody: express.Re
             `https://api.github.com/repos/${fullName}`,
           );
 
-          const branch = repoMeta.default_branch || 'main';
+          const branch = repoMeta.default_branch || "main";
           const response = await postRunToAutobot(
             fullName,
             branch,
@@ -651,22 +726,23 @@ export const registerConsoleRoutes = (app: express.Express, jsonBody: express.Re
 
           outcomes.push({
             repo: fullName,
-            status: 'queued',
-            message: 'Run queued for default branch.',
+            status: "queued",
+            message: "Run queued for default branch.",
             jobId: response?.jobId,
             statusUrl: response?.statusUrl,
           });
         } catch (error) {
           outcomes.push({
             repo: fullName,
-            status: 'failed',
-            message: error instanceof Error ? error.message : 'Failed to queue run',
+            status: "failed",
+            message:
+              error instanceof Error ? error.message : "Failed to queue run",
           });
         }
       }),
     );
 
-    const failed = outcomes.filter((entry) => entry.status === 'failed').length;
+    const failed = outcomes.filter((entry) => entry.status === "failed").length;
     res.json({
       ok: failed === 0 && tokenSync.ok,
       results: outcomes,
