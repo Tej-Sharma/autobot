@@ -32,7 +32,14 @@ app.use('/api', async (req, res) => {
   try {
     const targetUrl = parseProxyTarget(req.originalUrl);
 
-    const headers = { ...req.headers } as Record<string, string | string[]>;
+    const headers: Record<string, string> = {};
+    for (const [key, value] of Object.entries(req.headers)) {
+      if (typeof value === 'string') {
+        headers[key] = value;
+      } else if (Array.isArray(value)) {
+        headers[key] = value.join(',');
+      }
+    }
     delete headers.host;
     delete headers['content-length'];
     headers['x-forwarded-host'] = req.get('x-forwarded-host') || req.get('host') || '';
