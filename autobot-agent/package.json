@@ -1,0 +1,22 @@
+{
+  "name": "autobot-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lightweight agent running inside per-user Fly Machines — handles clone, install, build, dev server, and screenshots",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.54.0",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.23",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
+  }
+}

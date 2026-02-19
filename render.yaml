@@ -48,6 +48,14 @@ services:
         sync: false
       - key: VERCEL_PROJECT_ID
         sync: false
+      - key: FLY_API_TOKEN
+        sync: false
+      - key: FLY_APP_NAME
+        value: autobot-envs
+      - key: FLY_REGION
+        value: sjc
+      - key: FLY_AGENT_SECRET
+        sync: false
 
   - type: worker
     name: autobot-worker
@@ -81,6 +89,14 @@ services:
       - key: VERCEL_TOKEN
         sync: false
       - key: VERCEL_PROJECT_ID
+        sync: false
+      - key: FLY_API_TOKEN
+        sync: false
+      - key: FLY_APP_NAME
+        value: autobot-envs
+      - key: FLY_REGION
+        value: sjc
+      - key: FLY_AGENT_SECRET
         sync: false
 
   - type: web

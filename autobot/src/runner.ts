@@ -1,14 +1,30 @@
-import path from 'node:path';
-import { normalizeBaseUrl, uniqueList } from './utils';
-import { CONFIG } from './config';
-import { JobStatus, PhaseRecord, QueuedRun, RunEnvironment, RunReport, RunTotals } from './types';
-import { setJobStatus, ensureArtifactDir } from './state';
-import { resolveRouteSpecs } from './manifest';
-import { resolvePreviewUrl } from './vercel';
-import { runVisualChecks } from './screenshotRunner';
-import { judgeScreenshots } from './judge';
-import { aggregateRunTotals, buildPrComment, writeJsonReport, writeMarkdownReport } from './reporter';
-import { postGithubCommentForActor } from './github';
+import path from "node:path";
+import { normalizeBaseUrl, uniqueList } from "./utils";
+import { CONFIG } from "./config";
+import {
+  JobStatus,
+  PhaseRecord,
+  QueuedRun,
+  RunEnvironment,
+  RunReport,
+  RunTotals,
+} from "./types";
+import { setJobStatus, ensureArtifactDir } from "./state";
+import { resolveRouteSpecs } from "./manifest";
+import { resolvePreviewUrl } from "./vercel";
+import { runVisualChecks } from "./screenshotRunner";
+import { judgeScreenshots } from "./judge";
+import {
+  aggregateRunTotals,
+  buildPrComment,
+  writeJsonReport,
+  writeMarkdownReport,
+} from "./reporter";
+import { postGithubCommentForActor } from "./github";
+import { ensureEnvironment } from "./environmentManager";
+import { executeBuildPipeline } from "./buildPipeline";
+import { getRepoTokenForActor } from "./repoTokens";
+import { runManagedVisualChecks } from "./managedScreenshotRunner";
 
 export interface ExecutionResult {
   reportPath: string;
@@ -16,21 +32,29 @@ export interface ExecutionResult {
 }
 
 const resolveEnvironmentUrl = async (request: QueuedRun): Promise<string> => {
-  if (request.environment === 'custom') {
+  if (request.environment === "managed") {
+    throw new Error(
+      "managed environments use executeManagedRun — should not call resolveEnvironmentUrl",
+    );
+  }
+
+  if (request.environment === "custom") {
     if (!request.baseUrl) {
-      throw new Error('custom environment requires baseUrl');
+      throw new Error("custom environment requires baseUrl");
     }
     return normalizeBaseUrl(request.baseUrl);
   }
 
-  if (request.environment === 'production') {
+  if (request.environment === "production") {
     if (!CONFIG.productionBaseUrl) {
-      throw new Error('BASE_URL_PRODUCTION is not configured');
+      throw new Error("BASE_URL_PRODUCTION is not configured");
     }
     return normalizeBaseUrl(CONFIG.productionBaseUrl);
   }
 
-  const previewFromPayload = request.baseUrl ? normalizeBaseUrl(request.baseUrl) : null;
+  const previewFromPayload = request.baseUrl
+    ? normalizeBaseUrl(request.baseUrl)
+    : null;
   if (previewFromPayload) return previewFromPayload;
 
   const resolved = await resolvePreviewUrl({
@@ -40,18 +64,23 @@ const resolveEnvironmentUrl = async (request: QueuedRun): Promise<string> => {
 
   if (resolved) return resolved;
 
-  throw new Error('Could not resolve preview URL for PR. Pass baseUrl manually via /qa run baseUrl=...');
+  throw new Error(
+    "Could not resolve preview URL for PR. Pass baseUrl manually via /qa run baseUrl=...",
+  );
 };
 
-function determineStatusForRun(totals: RunTotals, includeJudge: boolean): RunReport['status'] {
+function determineStatusForRun(
+  totals: RunTotals,
+  includeJudge: boolean,
+): RunReport["status"] {
   if (!includeJudge) {
-    return totals.capturedPhases > 0 ? 'succeeded' : 'failed';
+    return totals.capturedPhases > 0 ? "succeeded" : "failed";
   }
 
-  if (totals.blocking > 0) return 'failed';
-  if (totals.high >= CONFIG.failOnHighThreshold) return 'partial';
-  if (totals.score < CONFIG.minimumScore) return 'failed';
-  return 'succeeded';
+  if (totals.blocking > 0) return "failed";
+  if (totals.high >= CONFIG.failOnHighThreshold) return "partial";
+  if (totals.score < CONFIG.minimumScore) return "failed";
+  return "succeeded";
 }
 
 export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
@@ -59,37 +88,93 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
   const createdAt = new Date().toISOString();
   const runDir = await ensureArtifactDir(runId);
   await setJobStatus(runId, {
-    status: 'running',
-    progressMessage: 'resolving base URL and routing plan',
+    status: "running",
+    progressMessage: "resolving base URL and routing plan",
   });
 
   const routeTokens = uniqueList(payload.routes);
   const routeSpecs = resolveRouteSpecs(routeTokens);
   let baseUrl: string;
   let routeRecords: PhaseRecord[] = [];
-  let status: JobStatus = 'running';
-  let statusReason = '';
+  let status: JobStatus = "running";
+  let statusReason = "";
 
   try {
-    baseUrl = await resolveEnvironmentUrl(payload);
-    await setJobStatus(runId, {
-      status: 'running',
-      progressMessage: `resolved environment: ${baseUrl}`,
-    });
-
     const viewports = payload.viewports.slice(0, 3);
-    routeRecords = await runVisualChecks({
-      jobId: runId,
-      runDir,
-      baseUrl,
-      routeConfigs: routeSpecs,
-      mode: payload.mode,
-      viewports,
-    });
+
+    if (payload.environment === "managed") {
+      // ---- Managed environment: Fly Machine + agent pipeline ----
+      if (!payload.repo || !payload.branch) {
+        throw new Error("managed environment requires repo and branch");
+      }
+
+      await setJobStatus(runId, {
+        status: "running",
+        progressMessage: "provisioning managed environment",
+      });
+
+      const env = await ensureEnvironment(
+        payload.repo,
+        payload.actor ?? "unknown",
+      );
+
+      await setJobStatus(runId, {
+        status: "running",
+        progressMessage: "running build pipeline (clone, install, start)",
+      });
+
+      const repoId = `${payload.repo.owner}/${payload.repo.name}`;
+      const accessToken = await getRepoTokenForActor(repoId, payload.actor);
+
+      const buildResult = await executeBuildPipeline({
+        environment: env,
+        repo: payload.repo,
+        branch: payload.branch,
+        sha: payload.sha,
+        accessToken,
+      });
+
+      if (!buildResult.success) {
+        throw new Error(`Build pipeline failed: ${buildResult.error}`);
+      }
+
+      baseUrl = buildResult.devServerUrl;
+
+      await setJobStatus(runId, {
+        status: "running",
+        progressMessage: `build complete (${buildResult.totalDurationMs}ms); capturing screenshots via agent`,
+      });
+
+      routeRecords = await runManagedVisualChecks({
+        agentUrl: env.agentUrl,
+        agentSecret: CONFIG.flyAgentSecret,
+        jobId: runId,
+        runDir,
+        routeConfigs: routeSpecs,
+        mode: payload.mode,
+        viewports,
+      });
+    } else {
+      // ---- Existing flow: resolve external URL + local Playwright ----
+      baseUrl = await resolveEnvironmentUrl(payload);
+      await setJobStatus(runId, {
+        status: "running",
+        progressMessage: `resolved environment: ${baseUrl}`,
+      });
+
+      routeRecords = await runVisualChecks({
+        jobId: runId,
+        runDir,
+        baseUrl,
+        routeConfigs: routeSpecs,
+        mode: payload.mode,
+        viewports,
+      });
+    }
 
     await setJobStatus(runId, {
-      status: 'running',
-      progressMessage: 'captured screenshots; running AI judge',
+      status: "running",
+      progressMessage: "captured screenshots; running AI judge",
     });
 
     if (payload.includeJudge) {
@@ -100,7 +185,7 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
     status = determineStatusForRun(totals, payload.includeJudge);
 
     if (CONFIG.failOnBlocking && totals.blocking > 0) {
-      status = 'failed';
+      status = "failed";
     }
 
     const report: RunReport = {
@@ -139,19 +224,25 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
       reportPath,
     });
 
-    if (payload.repo && payload.prNumber && payload.source === 'github') {
+    if (payload.repo && payload.prNumber && payload.source === "github") {
       const comment = buildPrComment(report);
       try {
-        await postGithubCommentForActor(payload.repo.owner, payload.repo.name, payload.prNumber, comment, payload.actor);
+        await postGithubCommentForActor(
+          payload.repo.owner,
+          payload.repo.name,
+          payload.prNumber,
+          comment,
+          payload.actor,
+        );
       } catch (commentError) {
-        console.error('[runner] failed to post GitHub comment', commentError);
+        console.error("[runner] failed to post GitHub comment", commentError);
       }
     }
 
     return { reportPath, status };
   } catch (error) {
-    status = 'failed';
-    statusReason = error instanceof Error ? error.message : 'unknown failure';
+    status = "failed";
+    statusReason = error instanceof Error ? error.message : "unknown failure";
 
     await setJobStatus(runId, {
       status,
@@ -165,8 +256,8 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
       updatedAt: new Date().toISOString(),
       status,
       statusReason,
-      environment: (payload.environment as RunEnvironment) || 'custom',
-      baseUrl: payload.baseUrl || 'unknown',
+      environment: (payload.environment as RunEnvironment) || "custom",
+      baseUrl: payload.baseUrl || "unknown",
       mode: payload.mode,
       routeCount: routeSpecs.length,
       viewportCount: payload.viewports.length,
@@ -197,10 +288,16 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
     const reportPath = await writeJsonReport(runId, fallback);
     await writeMarkdownReport(runId, fallback);
 
-    if (payload.repo && payload.prNumber && payload.source === 'github') {
+    if (payload.repo && payload.prNumber && payload.source === "github") {
       const comment = buildPrComment(fallback);
       try {
-        await postGithubCommentForActor(payload.repo.owner, payload.repo.name, payload.prNumber, comment, payload.actor);
+        await postGithubCommentForActor(
+          payload.repo.owner,
+          payload.repo.name,
+          payload.prNumber,
+          comment,
+          payload.actor,
+        );
       } catch {
         // ignore
       }

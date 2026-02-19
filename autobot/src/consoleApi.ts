@@ -5,6 +5,13 @@ import { enqueueRun } from "./queue";
 import { normalizeRequestForExecution } from "./runnerConfig";
 import { upsertRepoTokenMappings } from "./repoTokens";
 import { RunMode, RunRequest } from "./types";
+import {
+  ensureEnvironment,
+  stopEnvironment,
+  destroyEnvironment,
+  getEnvironmentStatus,
+  listUserEnvironments,
+} from "./environmentManager";
 
 export const REGISTERED_CONSOLE_PREFIX = "/api";
 
@@ -750,4 +757,136 @@ export const registerConsoleRoutes = (
       tokenSync,
     });
   });
+
+  /* ---------------------------------------------------------------- */
+  /*  Environment management endpoints                                 */
+  /* ---------------------------------------------------------------- */
+
+  app.get("/api/environments", async (req, res) => {
+    const session = getSession(req);
+    if (!session) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+
+    try {
+      const envs = await listUserEnvironments(session.user.login);
+      res.json({ environments: envs });
+    } catch (error) {
+      res.status(500).json({
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to list environments",
+      });
+    }
+  });
+
+  app.get("/api/environments/:owner/:repo", async (req, res) => {
+    const session = getSession(req);
+    if (!session) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+
+    try {
+      const env = await getEnvironmentStatus({
+        owner: req.params.owner,
+        name: req.params.repo,
+      });
+      if (!env) {
+        res.status(404).json({ error: "environment not found" });
+        return;
+      }
+      res.json({ environment: env });
+    } catch (error) {
+      res.status(500).json({
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to get environment status",
+      });
+    }
+  });
+
+  app.post(
+    "/api/environments/:owner/:repo/start",
+    jsonBody,
+    async (req, res) => {
+      const session = getSession(req);
+      if (!session) {
+        res.status(401).json({ error: "unauthorized" });
+        return;
+      }
+
+      try {
+        const env = await ensureEnvironment(
+          { owner: req.params.owner, name: req.params.repo },
+          session.user.login,
+        );
+        res.json({ ok: true, environment: env });
+      } catch (error) {
+        res.status(500).json({
+          error:
+            error instanceof Error
+              ? error.message
+              : "Failed to start environment",
+        });
+      }
+    },
+  );
+
+  app.post(
+    "/api/environments/:owner/:repo/stop",
+    jsonBody,
+    async (req, res) => {
+      const session = getSession(req);
+      if (!session) {
+        res.status(401).json({ error: "unauthorized" });
+        return;
+      }
+
+      try {
+        await stopEnvironment({
+          owner: req.params.owner,
+          name: req.params.repo,
+        });
+        res.json({ ok: true });
+      } catch (error) {
+        res.status(500).json({
+          error:
+            error instanceof Error
+              ? error.message
+              : "Failed to stop environment",
+        });
+      }
+    },
+  );
+
+  app.post(
+    "/api/environments/:owner/:repo/destroy",
+    jsonBody,
+    async (req, res) => {
+      const session = getSession(req);
+      if (!session) {
+        res.status(401).json({ error: "unauthorized" });
+        return;
+      }
+
+      try {
+        await destroyEnvironment({
+          owner: req.params.owner,
+          name: req.params.repo,
+        });
+        res.json({ ok: true });
+      } catch (error) {
+        res.status(500).json({
+          error:
+            error instanceof Error
+              ? error.message
+              : "Failed to destroy environment",
+        });
+      }
+    },
+  );
 };

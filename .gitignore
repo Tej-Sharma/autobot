@@ -1,14 +1,27 @@
+# Dependencies
 node_modules/
-autobot/node_modules/
-autobot-web/node_modules/
+
+# Build output
 dist/
-autobot/dist/
-autobot-web/dist/
+.next/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Artifacts (test outputs, screenshots, reports)
+autobot/artifacts/
+
+# OS files
 .DS_Store
 *.log
-autobot/.env
-autobot/.env.*
-autobot-web/.env
-autobot-web/.env.*
-!autobot/.env.example
-!autobot-web/.env.example
+
+# Aider
+.aider*
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo

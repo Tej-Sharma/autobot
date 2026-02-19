@@ -1,8 +1,14 @@
-export type RunEnvironment = 'preview' | 'production' | 'custom';
-export type RunMode = 'minimal' | 'smoke' | 'full';
-export type JobStatus = 'received' | 'queued' | 'running' | 'succeeded' | 'partial' | 'failed';
+export type RunEnvironment = "preview" | "production" | "custom" | "managed";
+export type RunMode = "minimal" | "smoke" | "full";
+export type JobStatus =
+  | "received"
+  | "queued"
+  | "running"
+  | "succeeded"
+  | "partial"
+  | "failed";
 
-export type Severity = 'blocking' | 'high' | 'medium' | 'low';
+export type Severity = "blocking" | "high" | "medium" | "low";
 
 export interface ViewportSetting {
   name: string;
@@ -35,7 +41,7 @@ export interface RunRequest {
   prNumber?: number;
   repo?: RepoRef;
   actor?: string;
-  source: 'api' | 'github';
+  source: "api" | "github";
   sourceMetadata: Record<string, unknown>;
   idempotencyKey?: string;
   maxRoutes?: number;
@@ -68,7 +74,7 @@ export interface PhaseRecord {
   viewport: string;
   screenshotPath: string;
   url: string;
-  status: 'captured' | 'skipped' | 'failed';
+  status: "captured" | "skipped" | "failed";
   error?: string;
   judge?: PhaseJudgment;
 }
