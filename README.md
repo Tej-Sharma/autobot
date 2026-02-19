@@ -1,4 +1,4 @@
-# Autobot
+![CleanShot 2026-02-18 at 19 56 14](https://github.com/user-attachments/assets/acee3976-9ffd-4766-af68-cb73c85e6c05)
 
 Unlike generic AI code reviewers, Autobot actually clicks through your frontend to catch bugs in flow, visual differences, and errors.
 
