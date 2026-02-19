@@ -15,16 +15,17 @@ Unlike generic AI code reviewers, Autobot actually clicks through your frontend 
 If you want your apps 24/7 tested to ensure 100% product quality for what you are building, sign up on
 [AutoBot.It.Com](https://autobot.it.com)
 
-We manage the infastructure & expensive agent costs via our hosted-GPUs all for you. Plus premium customer support and tuning the agent for your frontend.
+We manage the infastructure & expensive agent costs via our hosted-GPUs all for you. 
+Plus premium customer support and tuning the agent for your frontend.
 
-Otherwise see below and the token costs table
+Otherwise, here's the local setup below.
 
 ## Roadmap
 
-[x] Web Frontends
-[x] Testing Your Live Site
-[ ] Mobile (get [early access](emailto:team@constella.app))
-[ ] Backend
+- [x] Web Frontends
+- [x] Testing Your Live Site
+- [ ] Mobile (get [early access](mailto:team@constella.app))
+- [ ] Backend
 
 ## Architecture
 
