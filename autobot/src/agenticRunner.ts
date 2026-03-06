@@ -313,6 +313,7 @@ export async function runAgenticTest(input: {
   const { baseUrl, credentials, screenshotDir } = input;
   const startTime = Date.now();
 
+  console.log(`[agentic] starting test for ${baseUrl} (model: ${CONFIG.agentModel})`);
   const client = new Anthropic({ apiKey: CONFIG.anthropicApiKey });
   const browser = await chromium.launch({
     headless: true,
@@ -352,6 +353,7 @@ export async function runAgenticTest(input: {
     );
     screenshotKeys.push(shot.filename);
     elementCache = await snapshotElements(page);
+    console.log(`[agentic] initial screenshot taken, ${elementCache.length} elements found`);
 
     const messages: Anthropic.MessageParam[] = [
       {
@@ -377,6 +379,7 @@ export async function runAgenticTest(input: {
     let done = false;
 
     for (let turn = 0; turn < MAX_TURNS && !done; turn++) {
+      console.log(`[agentic] turn ${turn + 1}/${MAX_TURNS}, calling Claude...`);
       let response: Anthropic.Message;
       try {
         response = await client.messages.create({
@@ -393,6 +396,7 @@ export async function runAgenticTest(input: {
 
       inputTokens += response.usage?.input_tokens ?? 0;
       outputTokens += response.usage?.output_tokens ?? 0;
+      console.log(`[agentic] turn ${turn + 1}: ${response.stop_reason}, ${response.content.length} blocks, ${response.usage?.output_tokens ?? 0} out tokens`);
 
       // Add assistant response
       messages.push({ role: "assistant", content: response.content });
