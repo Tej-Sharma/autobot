@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
+import posthog from "posthog-js";
 import Link from "next/link";
 import { Navbar } from "../../../components/Navbar";
 import { Footer } from "../../../components/Footer";
@@ -113,6 +114,12 @@ export default function RunPage() {
 
       if (isTerminal(data.status) && data.report && !report) {
         setReport(data.report);
+        posthog.capture("test_results_viewed", {
+          job_id: jobId,
+          score: data.report.totals?.score,
+          base_url: data.report.baseUrl,
+          findings_count: data.report.phases?.flatMap((p: Phase) => p.judge?.findings ?? []).length ?? 0,
+        });
       }
     } catch {
       setFetchError("Network error. Retrying...");
@@ -146,6 +153,7 @@ export default function RunPage() {
     }
     setEmailStatus("sending");
     setEmailError(null);
+    posthog.capture("email_report_submitted", { job_id: jobId, email: trimmed });
     try {
       const res = await fetch("/api/leads/capture", {
         method: "POST",
@@ -158,6 +166,7 @@ export default function RunPage() {
       }
       setEmailStatus("sent");
       localStorage.setItem("autobot_email", trimmed);
+      posthog.identify(trimmed, { email: trimmed });
     } catch (err) {
       setEmailError(err instanceof Error ? err.message : "Failed to send");
       setEmailStatus("error");
@@ -165,6 +174,7 @@ export default function RunPage() {
   }
 
   async function handleUpgrade() {
+    posthog.capture("upgrade_to_pro_clicked", { source: "results_page", job_id: jobId });
     const savedEmail = email.trim().toLowerCase() || localStorage.getItem("autobot_email") || "";
     if (!savedEmail) {
       setEmailError("Enter your email first to upgrade");

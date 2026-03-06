@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import posthog from "posthog-js";
 import Link from "next/link";
 import { Navbar } from "../../components/Navbar";
 import { Footer } from "../../components/Footer";
@@ -121,6 +122,8 @@ function MePage() {
     if (!trimmed) return;
     localStorage.setItem("autobot_email", trimmed);
     setEmail(trimmed);
+    posthog.identify(trimmed, { email: trimmed });
+    posthog.capture("dashboard_login", { email: trimmed });
   }
 
   function scoreColor(score: number): string {
@@ -139,6 +142,7 @@ function MePage() {
   }
 
   async function handleUpgrade() {
+    posthog.capture("upgrade_to_pro_clicked", { source: "dashboard", email });
     try {
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
@@ -160,6 +164,7 @@ function MePage() {
     try { new URL(trimmed); } catch { setError("Invalid URL"); return; }
 
     setMonitorLoading(true);
+    posthog.capture("monitor_added", { url: trimmed, interval_hours: newMonitorInterval, has_credentials: !!newMonitorCredentials });
     try {
       const res = await fetch("/api/monitors", {
         method: "POST",
@@ -183,6 +188,7 @@ function MePage() {
   }
 
   async function deleteMonitor(url: string) {
+    posthog.capture("monitor_deleted", { url });
     try {
       const res = await fetch("/api/monitors", {
         method: "DELETE",

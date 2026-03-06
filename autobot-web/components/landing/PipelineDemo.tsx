@@ -77,7 +77,8 @@ export function PipelineDemo() {
             <div className="bg-black/50 p-2 font-mono text-[10px] text-accent-green overflow-hidden leading-relaxed border border-border-dark">
               &gt; 4 pages tested<br />
               &gt; score: 92/100<br />
-              &gt; 0 blocking issues
+              &gt; 0 blocking issues<br />
+              <span className="text-red-400">&gt; dashboard button error</span>
             </div>
           </div>
         </div>

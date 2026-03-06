@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import { Navbar } from "../components/Navbar";
 import { Hero } from "../components/landing/Hero";
 import { PipelineDemo } from "../components/landing/PipelineDemo";
@@ -17,6 +18,7 @@ export default function LandingPage() {
   async function handleSubmitUrl(url: string) {
     setIsSubmitting(true);
     setError(null);
+    posthog.capture("free_test_submitted", { url });
 
     try {
       const res = await fetch("/api/qa/try", {
@@ -29,13 +31,16 @@ export default function LandingPage() {
 
       if (!res.ok) {
         if (res.status === 429) {
+          posthog.capture("free_test_rate_limited", { url });
           setError("Rate limit reached. Please try again tomorrow.");
         } else {
+          posthog.capture("free_test_error", { url, error: data.error });
           setError(data.error || "Something went wrong. Please try again.");
         }
         return;
       }
 
+      posthog.capture("free_test_started", { url, job_id: data.jobId });
       router.push(`/run/${data.jobId}`);
     } catch {
       setError("Network error. Please check your connection and try again.");
