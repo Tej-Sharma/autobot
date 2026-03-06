@@ -62,6 +62,7 @@ export default function DashboardPage() {
   const [selectedRepos, setSelectedRepos] = useState<Set<string>>(new Set());
   const [testMode, setTestMode] = useState<"screenshots-only" | "scriptgen" | "agentic">("screenshots-only");
   const [runBaseUrl, setRunBaseUrl] = useState("");
+  const [credentials, setCredentials] = useState("");
 
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [syncMessageType, setSyncMessageType] = useState<"info" | "warning">(
@@ -196,6 +197,8 @@ export default function DashboardPage() {
           baseUrl: runBaseUrl.trim(),
           mode: "smoke",
           includeJudge: true,
+          testMode,
+          credentials: credentials.trim() || undefined,
         }),
       });
 
@@ -327,6 +330,26 @@ export default function DashboardPage() {
                   </label>
                 ))}
               </div>
+            </div>
+
+            {/* Credentials */}
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-accent-cyan font-mono text-xs">&gt;</span>
+                <label htmlFor="credentials" className="text-sm text-gray-600 dark:text-gray-300">
+                  Test account credentials for the AI agent
+                </label>
+              </div>
+              <input
+                id="credentials"
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-black/20 font-mono text-sm outline-none focus:ring-2 focus:ring-accent-cyan/40 placeholder:text-gray-500 dark:placeholder:text-gray-700"
+                placeholder="credentials (login/password) of a paid account to use"
+                value={credentials}
+                onChange={(e) => setCredentials(e.target.value)}
+              />
+              <p className="text-[10px] text-gray-500 dark:text-gray-600 mt-1 pl-5 font-mono">
+                Format: email:user@test.com / password:secret123 — fed to the AI agent for authenticated testing
+              </p>
             </div>
 
             {/* Run now */}

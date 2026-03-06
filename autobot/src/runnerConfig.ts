@@ -2,7 +2,7 @@ import { isHttpError, parseCommaSeparated, stableId, uniqueList } from './utils'
 import { CONFIG } from './config';
 import { JobStatus, RunMode, RunRequest, ViewportSetting } from './types';
 
-export const ALLOWED_ENVIRONMENTS = ['preview', 'production', 'custom'] as const;
+export const ALLOWED_ENVIRONMENTS = ['preview', 'production', 'custom', 'managed'] as const;
 export const ALLOWED_MODES = ['minimal', 'smoke', 'full'] as const;
 
 export interface TriggerParseResult {

@@ -4,7 +4,8 @@ import { CONFIG } from "./config";
 import { enqueueRun } from "./queue";
 import { normalizeRequestForExecution } from "./runnerConfig";
 import { upsertRepoTokenMappings } from "./repoTokens";
-import { RunMode, RunRequest } from "./types";
+import { getRepoConfig, setRepoConfig } from "./repoConfig";
+import { RunMode, RunRequest, TestMode } from "./types";
 import {
   ensureEnvironment,
   stopEnvironment,
@@ -269,6 +270,8 @@ const postRunToAutobot = async (
   mode: RunMode,
   includeJudge: boolean,
   req: express.Request,
+  testMode?: TestMode,
+  credentials?: Record<string, string>,
 ) => {
   const [owner, name] = repo.split("/");
   if (!owner || !name) {
@@ -294,6 +297,8 @@ const postRunToAutobot = async (
     },
     branch: defaultBranch,
     actor: sessionUser,
+    testMode,
+    credentials,
   });
 
   const jobId = await enqueueRun(request);
@@ -539,6 +544,20 @@ export const registerConsoleRoutes = (
       return;
     }
 
+    // Save per-repo test mode config
+    const rawTestMode = typeof req.body?.testMode === 'string' ? req.body.testMode : 'screenshots-only';
+    const testMode: TestMode = (rawTestMode === 'agentic' || rawTestMode === 'scriptgen')
+      ? rawTestMode
+      : 'screenshots-only';
+
+    for (const repoName of cleanedRepos) {
+      try {
+        await setRepoConfig(repoName, { testMode, updatedBy: session.user.login });
+      } catch (err) {
+        console.error(`[consoleApi] failed to save config for ${repoName}:`, err);
+      }
+    }
+
     const outcomes: SyncResult[] = [];
 
     await Promise.all(
@@ -674,6 +693,18 @@ export const registerConsoleRoutes = (
     );
     const includeJudge = req.body?.includeJudge !== false;
     const mode = runNowMode(req.body?.mode);
+    const testMode = typeof req.body?.testMode === 'string' ? req.body.testMode as TestMode : undefined;
+    const rawCreds = typeof req.body?.credentials === 'string' ? req.body.credentials.trim() : '';
+    const credentials: Record<string, string> = {};
+    if (rawCreds) {
+      for (const part of rawCreds.split(/[,;\/]/).map((s: string) => s.trim()).filter(Boolean)) {
+        const sepIdx = part.indexOf(':');
+        if (sepIdx > 0) {
+          credentials[part.slice(0, sepIdx).trim()] = part.slice(sepIdx + 1).trim();
+        }
+      }
+    }
+    const hasCredentials = Object.keys(credentials).length > 0;
 
     if (!repos.length) {
       res
@@ -730,6 +761,8 @@ export const registerConsoleRoutes = (
             mode,
             includeJudge,
             req,
+            testMode,
+            hasCredentials ? credentials : undefined,
           );
 
           outcomes.push({
@@ -756,6 +789,59 @@ export const registerConsoleRoutes = (
       results: outcomes,
       tokenSync,
     });
+  });
+
+  /* ---------------------------------------------------------------- */
+  /*  Environment management endpoints                                 */
+  /* ---------------------------------------------------------------- */
+
+  /* ---------------------------------------------------------------- */
+  /*  Per-repo config endpoints                                        */
+  /* ---------------------------------------------------------------- */
+
+  app.get("/api/repos/:owner/:repo/config", async (req, res) => {
+    const session = getSession(req);
+    if (!session) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+
+    try {
+      const repoFullName = `${req.params.owner}/${req.params.repo}`;
+      const config = await getRepoConfig(repoFullName);
+      res.json({ config: config ?? { testMode: "screenshots-only", enabled: true } });
+    } catch (error) {
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to get repo config",
+      });
+    }
+  });
+
+  app.post("/api/repos/:owner/:repo/config", jsonBody, async (req, res) => {
+    const session = getSession(req);
+    if (!session) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+
+    try {
+      const repoFullName = `${req.params.owner}/${req.params.repo}`;
+      const rawTestMode = typeof req.body?.testMode === "string" ? req.body.testMode : undefined;
+      const testMode: TestMode | undefined =
+        rawTestMode === "agentic" || rawTestMode === "scriptgen" || rawTestMode === "screenshots-only"
+          ? rawTestMode
+          : undefined;
+
+      const config = await setRepoConfig(repoFullName, {
+        testMode,
+        updatedBy: session.user.login,
+      });
+      res.json({ ok: true, config });
+    } catch (error) {
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to save repo config",
+      });
+    }
   });
 
   /* ---------------------------------------------------------------- */

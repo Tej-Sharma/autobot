@@ -17,6 +17,7 @@ export interface MonitoredUrl {
   createdAt: string;
   lastRunAt?: string;
   lastJobId?: string;
+  credentials?: string;
 }
 
 function monitorKey(email: string): string {
@@ -28,12 +29,13 @@ export async function getMonitors(email: string): Promise<MonitoredUrl[]> {
   return raw ? JSON.parse(raw) : [];
 }
 
-export async function addMonitor(email: string, url: string, intervalHours: number): Promise<MonitoredUrl[]> {
+export async function addMonitor(email: string, url: string, intervalHours: number, credentials?: string): Promise<MonitoredUrl[]> {
   const monitors = await getMonitors(email);
   const existing = monitors.find(m => m.url === url);
   if (existing) {
     existing.intervalHours = intervalHours;
     existing.enabled = true;
+    if (credentials !== undefined) existing.credentials = credentials;
   } else {
     monitors.push({
       url,
@@ -41,6 +43,7 @@ export async function addMonitor(email: string, url: string, intervalHours: numb
       intervalHours,
       enabled: true,
       createdAt: new Date().toISOString(),
+      credentials,
     });
   }
   await redis.set(monitorKey(email), JSON.stringify(monitors));
@@ -83,16 +86,29 @@ export async function runDueMonitors(): Promise<number> {
       if (now - lastRun < intervalMs) continue;
 
       try {
+        // Parse credentials string into key-value pairs for the AI agent
+        const creds: Record<string, string> = {};
+        if (monitor.credentials) {
+          for (const part of monitor.credentials.split(/[,;\/]/).map(s => s.trim()).filter(Boolean)) {
+            const sepIdx = part.indexOf(':');
+            if (sepIdx > 0) {
+              creds[part.slice(0, sepIdx).trim()] = part.slice(sepIdx + 1).trim();
+            }
+          }
+        }
+        const hasCredentials = Object.keys(creds).length > 0;
+
         const jobId = await enqueueRun({
-          environment: 'custom',
+          environment: 'managed',
           baseUrl: monitor.url,
           routes: ['/'],
           mode: 'smoke',
           viewports: [{ name: 'desktop', width: 1280, height: 720 }],
           includeJudge: true,
-          testMode: 'screenshots-only',
+          testMode: 'agentic',
           source: 'web-trial',
           sourceMetadata: { email, monitor: true, scheduled: true },
+          credentials: hasCredentials ? creds : undefined,
         });
 
         monitor.lastRunAt = new Date().toISOString();

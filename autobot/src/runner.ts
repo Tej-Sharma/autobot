@@ -120,8 +120,10 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
 
     if (payload.environment === "managed") {
       // ---- Managed environment: Fly Machine + agent pipeline ----
-      if (!payload.repo || !payload.branch) {
-        throw new Error("managed environment requires repo and branch");
+      const isUrlOnly = !payload.repo && payload.baseUrl;
+
+      if (!isUrlOnly && (!payload.repo || !payload.branch)) {
+        throw new Error("managed environment requires repo+branch or baseUrl");
       }
 
       await setJobStatus(runId, {
@@ -129,61 +131,24 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
         progressMessage: "provisioning managed environment",
       });
 
+      // For URL-only runs (monitors), use a shared machine keyed to '_autobot/monitor'
+      const envRepo = payload.repo ?? { owner: '_autobot', name: 'monitor' };
       const env = await ensureEnvironment(
-        payload.repo,
-        payload.actor ?? "unknown",
+        envRepo,
+        payload.actor ?? "monitor",
       );
 
-      await setJobStatus(runId, {
-        status: "running",
-        progressMessage: "running build pipeline (clone, install, start)",
-      });
+      if (isUrlOnly) {
+        // ---- URL-only agentic run (no clone/build) ----
+        baseUrl = payload.baseUrl!;
 
-      const repoId = `${payload.repo.owner}/${payload.repo.name}`;
-      const accessToken = await getRepoTokenForActor(repoId, payload.actor);
-
-      const buildResult = await executeBuildPipeline({
-        environment: env,
-        repo: payload.repo,
-        branch: payload.branch,
-        sha: payload.sha,
-        accessToken,
-      });
-
-      if (!buildResult.success) {
-        throw new Error(`Build pipeline failed: ${buildResult.error}`);
-      }
-
-      baseUrl = buildResult.devServerUrl;
-
-      await setJobStatus(runId, {
-        status: "running",
-        progressMessage: `build complete (${buildResult.totalDurationMs}ms); capturing screenshots via agent`,
-      });
-
-      routeRecords = await runManagedVisualChecks({
-        agentUrl: env.agentUrl,
-        agentSecret: CONFIG.flyAgentSecret,
-        jobId: runId,
-        runDir,
-        routeConfigs: routeSpecs,
-        mode: payload.mode,
-        viewports,
-      });
-
-      // Run AI test if configured (non-fatal — screenshots still get posted on failure)
-      if (
-        payload.testMode &&
-        payload.testMode !== 'screenshots-only' &&
-        CONFIG.aiTestEnabled
-      ) {
-        const aiMode = payload.testMode === 'agentic' ? 'agentic' : 'scriptgen';
         await setJobStatus(runId, {
           status: 'running',
-          progressMessage: `running AI test (${aiMode} mode)`,
+          progressMessage: `running AI agent against ${baseUrl}`,
         });
 
         try {
+          const aiMode = payload.testMode === 'scriptgen' ? 'scriptgen' : 'agentic';
           const aiResult = await agentFetch<{
             success: boolean;
             report: AiTestReport | null;
@@ -192,13 +157,14 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
             durationMs: number;
           }>(env.agentUrl, '/run-ai-test', {
             mode: aiMode,
+            baseUrl,
             budget: CONFIG.aiTestBudgetUsd,
+            credentials: payload.credentials,
           });
 
           if (aiResult.success && aiResult.report) {
             aiTestReport = aiResult.report;
 
-            // Save AI test screenshots to run directory
             const aiScreenshotDir = path.join(runDir, 'ai-test-screenshots');
             const fsPromises = await import('node:fs/promises');
             await fsPromises.mkdir(aiScreenshotDir, { recursive: true });
@@ -212,7 +178,91 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
             console.error(`[runner] AI test failed: ${aiResult.error}`);
           }
         } catch (aiErr) {
-          console.error('[runner] AI test call failed (non-fatal):', aiErr);
+          console.error('[runner] AI test call failed:', aiErr);
+        }
+      } else {
+        // ---- Full managed: clone → build → screenshots → AI test ----
+        await setJobStatus(runId, {
+          status: "running",
+          progressMessage: "running build pipeline (clone, install, start)",
+        });
+
+        const repoId = `${payload.repo!.owner}/${payload.repo!.name}`;
+        const accessToken = await getRepoTokenForActor(repoId, payload.actor);
+
+        const buildResult = await executeBuildPipeline({
+          environment: env,
+          repo: payload.repo!,
+          branch: payload.branch!,
+          sha: payload.sha,
+          accessToken,
+        });
+
+        if (!buildResult.success) {
+          throw new Error(`Build pipeline failed: ${buildResult.error}`);
+        }
+
+        baseUrl = buildResult.devServerUrl;
+
+        await setJobStatus(runId, {
+          status: "running",
+          progressMessage: `build complete (${buildResult.totalDurationMs}ms); capturing screenshots via agent`,
+        });
+
+        routeRecords = await runManagedVisualChecks({
+          agentUrl: env.agentUrl,
+          agentSecret: CONFIG.flyAgentSecret,
+          jobId: runId,
+          runDir,
+          routeConfigs: routeSpecs,
+          mode: payload.mode,
+          viewports,
+        });
+
+        // Run AI test if configured (non-fatal — screenshots still get posted on failure)
+        if (
+          payload.testMode &&
+          payload.testMode !== 'screenshots-only' &&
+          CONFIG.aiTestEnabled
+        ) {
+          const aiMode = payload.testMode === 'agentic' ? 'agentic' : 'scriptgen';
+          await setJobStatus(runId, {
+            status: 'running',
+            progressMessage: `running AI test (${aiMode} mode)`,
+          });
+
+          try {
+            const aiResult = await agentFetch<{
+              success: boolean;
+              report: AiTestReport | null;
+              screenshots: Record<string, string>;
+              error?: string;
+              durationMs: number;
+            }>(env.agentUrl, '/run-ai-test', {
+              mode: aiMode,
+              budget: CONFIG.aiTestBudgetUsd,
+              credentials: payload.credentials,
+            });
+
+            if (aiResult.success && aiResult.report) {
+              aiTestReport = aiResult.report;
+
+              // Save AI test screenshots to run directory
+              const aiScreenshotDir = path.join(runDir, 'ai-test-screenshots');
+              const fsPromises = await import('node:fs/promises');
+              await fsPromises.mkdir(aiScreenshotDir, { recursive: true });
+              for (const [filename, base64] of Object.entries(aiResult.screenshots)) {
+                await fsPromises.writeFile(
+                  path.join(aiScreenshotDir, filename),
+                  Buffer.from(base64 as string, 'base64'),
+                );
+              }
+            } else if (aiResult.error) {
+              console.error(`[runner] AI test failed: ${aiResult.error}`);
+            }
+          } catch (aiErr) {
+            console.error('[runner] AI test call failed (non-fatal):', aiErr);
+          }
         }
       }
     } else {

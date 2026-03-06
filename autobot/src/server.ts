@@ -439,6 +439,7 @@ app.post('/api/monitors', jsonBody, async (req, res) => {
   const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
   const url = typeof req.body?.url === 'string' ? req.body.url.trim() : '';
   const intervalHours = typeof req.body?.intervalHours === 'number' ? req.body.intervalHours : 24;
+  const credentials = typeof req.body?.credentials === 'string' ? req.body.credentials.trim() : undefined;
 
   if (!email || !url) {
     res.status(400).json({ error: 'email and url are required' });
@@ -456,7 +457,7 @@ app.post('/api/monitors', jsonBody, async (req, res) => {
     return;
   }
 
-  const monitors = await addMonitor(email, url, intervalHours);
+  const monitors = await addMonitor(email, url, intervalHours, credentials);
   res.json({ ok: true, monitors });
 });
 

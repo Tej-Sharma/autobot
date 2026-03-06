@@ -136,6 +136,9 @@ async function createNewEnvironment(
     env: {
       AUTOBOT_AGENT_SECRET: CONFIG.flyAgentSecret ?? '',
       REPO_FULL_NAME: repoFullName,
+      ANTHROPIC_API_KEY: CONFIG.anthropicApiKey,
+      AGENT_MODEL: CONFIG.agentModel,
+      AGENT_MAX_BUDGET_USD: String(CONFIG.aiTestBudgetUsd),
     },
     metadata: {
       repo: repoFullName,

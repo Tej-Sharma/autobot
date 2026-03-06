@@ -46,6 +46,7 @@ export interface RunRequest {
   idempotencyKey?: string;
   maxRoutes?: number;
   testMode?: TestMode;
+  credentials?: Record<string, string>;
 }
 
 export type TestMode = 'agentic' | 'scriptgen' | 'screenshots-only';

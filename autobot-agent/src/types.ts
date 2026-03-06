@@ -104,3 +104,84 @@ export interface HealthStatus {
   dockerServicesRunning: boolean;
   uptime: number;
 }
+
+/* ------------------------------------------------------------------ */
+/*  AI Test Runner types                                               */
+/* ------------------------------------------------------------------ */
+
+export type AiTestMode = 'agentic' | 'scriptgen';
+
+export interface AiTestRequest {
+  mode: AiTestMode;
+  baseUrl?: string;
+  budget?: number;
+  credentials?: Record<string, string>;
+  description?: string;
+  forceAnalysis?: boolean;
+}
+
+export interface AiTestResult {
+  success: boolean;
+  report: AiTestReport | null;
+  screenshots: Record<string, string>;  // filename -> base64
+  error?: string;
+  durationMs: number;
+}
+
+export interface AiTestReport {
+  status: 'pass' | 'fail' | 'partial' | 'error';
+  flowsTotal: number;
+  flowsPassed: number;
+  flowsFailed: number;
+  flowsSkipped: number;
+  codeFaults: number;
+  findings: AiTestFinding[];
+  costUsd: number;
+  durationMs: number;
+  reportMd: string;
+  screenshotKeys: string[];
+}
+
+export interface AiTestFinding {
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  category: string;
+  message: string;
+  flowId?: string;
+  screenshot?: string;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Agent Loop types                                                   */
+/* ------------------------------------------------------------------ */
+
+export interface AgentConfig {
+  anthropicApiKey: string;
+  userApiKey: string;          // csk_ key for MCP server auth
+  mcpServerUrl?: string;       // default: https://fastfind.app
+  model?: string;              // default: claude-sonnet-4-20250514
+  maxBudgetUsd?: number;       // default: 5
+  systemPrompt?: string;       // custom system prompt additions
+  userTimezone?: string;       // default: UTC
+}
+
+export type AgentEventType =
+  | 'text'
+  | 'tool_call'
+  | 'tool_result'
+  | 'status'
+  | 'done'
+  | 'error';
+
+export interface AgentEvent {
+  type: AgentEventType;
+  data: Record<string, any>;
+}
+
+export interface AgentTaskAssignment {
+  taskId: string;
+  taskType: string;
+  title: string;
+  description: string;
+  parameters: Record<string, any>;
+  config: Record<string, any>;
+}

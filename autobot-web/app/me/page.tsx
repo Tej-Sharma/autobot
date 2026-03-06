@@ -14,6 +14,7 @@ interface MonitoredUrl {
   createdAt: string;
   lastRunAt?: string;
   lastJobId?: string;
+  credentials?: string;
 }
 
 interface LeadProfile {
@@ -51,6 +52,7 @@ function MePage() {
   const [monitors, setMonitors] = useState<MonitoredUrl[]>([]);
   const [newMonitorUrl, setNewMonitorUrl] = useState("");
   const [newMonitorInterval, setNewMonitorInterval] = useState(24);
+  const [newMonitorCredentials, setNewMonitorCredentials] = useState("");
   const [monitorLoading, setMonitorLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -162,7 +164,12 @@ function MePage() {
       const res = await fetch("/api/monitors", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, url: trimmed, intervalHours: newMonitorInterval }),
+        body: JSON.stringify({
+          email,
+          url: trimmed,
+          intervalHours: newMonitorInterval,
+          credentials: newMonitorCredentials || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Failed to add monitor"); return; }
@@ -328,32 +335,46 @@ function MePage() {
                     Monitored URLs ({monitors.length})
                   </h3>
 
-                  <form onSubmit={addMonitorUrl} className="mb-4 flex flex-col sm:flex-row gap-2">
-                    <input
-                      type="url"
-                      value={newMonitorUrl}
-                      onChange={(e) => setNewMonitorUrl(e.target.value)}
-                      placeholder="https://your-app.com"
-                      className="flex-1 px-4 py-2.5 border border-border-dark bg-surface-dark text-sm text-white outline-none focus:border-accent-cyan"
-                      disabled={monitorLoading}
-                    />
-                    <select
-                      value={newMonitorInterval}
-                      onChange={(e) => setNewMonitorInterval(Number(e.target.value))}
-                      className="px-3 py-2.5 border border-border-dark bg-surface-dark text-sm text-white outline-none"
-                    >
-                      <option value={6}>Every 6h</option>
-                      <option value={12}>Every 12h</option>
-                      <option value={24}>Every 24h</option>
-                      <option value={168}>Weekly</option>
-                    </select>
-                    <button
-                      type="submit"
-                      disabled={monitorLoading}
-                      className="bg-accent-cyan text-black px-5 py-2.5 text-sm font-bold hover:bg-accent-cyan/80 transition-colors disabled:opacity-60 whitespace-nowrap"
-                    >
-                      {monitorLoading ? "Adding..." : "Add Monitor"}
-                    </button>
+                  <form onSubmit={addMonitorUrl} className="mb-4 space-y-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="url"
+                        value={newMonitorUrl}
+                        onChange={(e) => setNewMonitorUrl(e.target.value)}
+                        placeholder="https://your-app.com"
+                        className="flex-1 px-4 py-2.5 border border-border-dark bg-surface-dark text-sm text-white outline-none focus:border-accent-cyan"
+                        disabled={monitorLoading}
+                      />
+                      <select
+                        value={newMonitorInterval}
+                        onChange={(e) => setNewMonitorInterval(Number(e.target.value))}
+                        className="px-3 py-2.5 border border-border-dark bg-surface-dark text-sm text-white outline-none"
+                      >
+                        <option value={6}>Every 6h</option>
+                        <option value={12}>Every 12h</option>
+                        <option value={24}>Every 24h</option>
+                        <option value={168}>Weekly</option>
+                      </select>
+                      <button
+                        type="submit"
+                        disabled={monitorLoading}
+                        className="bg-accent-cyan text-black px-5 py-2.5 text-sm font-bold hover:bg-accent-cyan/80 transition-colors disabled:opacity-60 whitespace-nowrap"
+                      >
+                        {monitorLoading ? "Adding..." : "Add Monitor"}
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-accent-cyan text-xs">&gt;</span>
+                      <input
+                        type="text"
+                        value={newMonitorCredentials}
+                        onChange={(e) => setNewMonitorCredentials(e.target.value)}
+                        placeholder="credentials (login/password) of a test account to use"
+                        className="flex-1 px-4 py-2 border border-border-dark bg-black text-sm text-gray-400 outline-none focus:border-accent-cyan focus:text-white placeholder:text-gray-700"
+                        disabled={monitorLoading}
+                      />
+                    </div>
+                    <p className="text-[10px] text-gray-600 pl-5">Format: email:user@test.com / password:secret123 — fed to the AI agent for testing authenticated flows</p>
                   </form>
 
                   {monitors.length === 0 ? (
@@ -381,6 +402,7 @@ function MePage() {
                               <p className="text-sm font-bold text-white truncate">{m.url}</p>
                               <p className="text-xs text-gray-600">
                                 Every {m.intervalHours}h
+                                {m.credentials && " · has credentials"}
                                 {m.lastRunAt && ` · Last: ${new Date(m.lastRunAt).toLocaleDateString()}`}
                                 {m.lastJobId && (
                                   <Link href={`/run/${m.lastJobId}`} className="text-accent-cyan hover:underline ml-1">
