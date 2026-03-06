@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Navbar } from "../../components/Navbar";
@@ -23,7 +23,15 @@ interface RunSummary {
   };
 }
 
-export default function MePage() {
+export default function MePageWrapper() {
+  return (
+    <Suspense>
+      <MePage />
+    </Suspense>
+  );
+}
+
+function MePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
