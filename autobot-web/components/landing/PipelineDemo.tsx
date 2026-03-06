@@ -53,7 +53,7 @@ export function PipelineDemo() {
             </div>
           </div>
 
-          {/* Arrow (desktop) */}
+          {/* Report card */}
           <div className="hidden lg:flex flex-col items-center justify-center flex-1 mx-4 relative h-12">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full h-px bg-accent-cyan/30" />
@@ -63,23 +63,21 @@ export function PipelineDemo() {
               <polygon fill="currentColor" points="95,5 100,10 95,15" />
             </svg>
           </div>
-          {/* Arrow (mobile) */}
           <div className="lg:hidden h-16 w-px bg-accent-cyan/30" />
 
-          {/* Generate & Run Tests card */}
           <div className="glass-card p-6 w-full max-w-[280px] flex flex-col gap-4 relative z-20 transition-transform hover:-translate-y-1 duration-300">
             <div className="flex items-center gap-3 mb-1">
-              <div className="w-8 h-8 flex items-center justify-center text-accent-amber">
-                <span className="material-icons text-sm">science</span>
+              <div className="w-8 h-8 flex items-center justify-center text-accent-green">
+                <span className="material-icons text-sm">assessment</span>
               </div>
               <span className="text-sm font-bold text-gray-200 font-mono">
-                Generate Tests
+                QA Report
               </span>
             </div>
             <div className="bg-black/50 p-2 font-mono text-[10px] text-accent-green overflow-hidden leading-relaxed border border-border-dark">
-              &gt; analyzing diff...<br />
-              &gt; generating spec...<br />
-              &gt; 3 edge cases found
+              &gt; 4 pages tested<br />
+              &gt; score: 92/100<br />
+              &gt; 0 blocking issues
             </div>
           </div>
         </div>
@@ -105,7 +103,7 @@ export function PipelineDemo() {
           <div className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-background-dark border border-border-dark px-4 py-1.5">
             <div className="flex items-center gap-2 text-xs font-bold text-accent-cyan whitespace-nowrap font-mono">
               <span className="material-icons text-xs">auto_fix_high</span>
-              commits fixes + report
+              reports to you asap
             </div>
           </div>
         </div>
@@ -116,7 +114,7 @@ export function PipelineDemo() {
           <div className="bg-background-dark border border-border-dark px-4 py-2 mt-2">
             <div className="flex items-center gap-2 text-xs font-bold text-accent-cyan font-mono">
               <span className="material-icons text-xs">replay</span>
-              repeats on every commit
+              reports to you asap
             </div>
           </div>
         </div>

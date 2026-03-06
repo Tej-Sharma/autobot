@@ -173,7 +173,7 @@ export function HowItWorks() {
               Step 02
             </div>
             <h3 className="text-2xl md:text-3xl font-bold text-white leading-tight font-mono">
-              generates and runs visual tests
+              actually clicks through and tests your app
             </h3>
             <p className="text-gray-500 leading-relaxed text-base font-mono">
               For frontend, it spins up a headless browser to click through
