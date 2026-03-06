@@ -101,6 +101,14 @@ export default function RunPage() {
   const [emailStatus, setEmailStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [emailError, setEmailError] = useState<string | null>(null);
 
+  useEffect(() => {
+    const saved = localStorage.getItem("autobot_email");
+    if (saved) {
+      setEmail(saved);
+      posthog.identify(saved, { email: saved });
+    }
+  }, []);
+
   const fetchJob = useCallback(async () => {
     try {
       const res = await fetch(`/api/qa/jobs/${jobId}`);
@@ -395,6 +403,44 @@ function ResultsView({
         )}
       </div>
 
+      {/* Email capture */}
+      <div className="mb-10 border border-border-dark bg-surface-dark p-6">
+        {emailStatus === "sent" ? (
+          <div className="text-center">
+            <span className="material-icons text-accent-green text-3xl mb-2">check_circle</span>
+            <p className="text-sm font-bold text-white">Report sent! Check your inbox.</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-3 mb-4">
+              <span className="material-icons text-accent-cyan text-2xl">email</span>
+              <div>
+                <p className="text-sm font-bold text-white">Get the full report emailed</p>
+                <p className="text-xs text-gray-500">Screenshots, findings, and score — delivered to your inbox.</p>
+              </div>
+            </div>
+            <form onSubmit={onEmailCapture} className="flex gap-2">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@company.com"
+                className="flex-1 px-4 py-2.5 border border-border-dark bg-transparent text-sm text-white outline-none focus:border-accent-cyan"
+                disabled={emailStatus === "sending"}
+              />
+              <button
+                type="submit"
+                disabled={emailStatus === "sending"}
+                className="bg-accent-cyan text-black px-5 py-2.5 text-sm font-bold hover:bg-accent-cyan/80 transition-colors disabled:opacity-60 whitespace-nowrap"
+              >
+                {emailStatus === "sending" ? "Sending..." : "Send Report"}
+              </button>
+            </form>
+            {emailError && <p className="mt-2 text-xs text-red-400">{emailError}</p>}
+          </>
+        )}
+      </div>
+
       {/* Upgrade CTA */}
       <div className="mb-10 border border-accent-cyan/20 bg-accent-cyan/5 p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -493,44 +539,6 @@ function ResultsView({
           </div>
         </>
       )}
-
-      {/* Email capture */}
-      <div className="mt-12 border border-border-dark bg-surface-dark p-6">
-        {emailStatus === "sent" ? (
-          <div className="text-center">
-            <span className="material-icons text-accent-green text-3xl mb-2">check_circle</span>
-            <p className="text-sm font-bold text-white">Report sent! Check your inbox.</p>
-          </div>
-        ) : (
-          <>
-            <div className="flex items-center gap-3 mb-4">
-              <span className="material-icons text-accent-cyan text-2xl">email</span>
-              <div>
-                <p className="text-sm font-bold text-white">Get the full report emailed</p>
-                <p className="text-xs text-gray-500">Screenshots, findings, and score — delivered to your inbox.</p>
-              </div>
-            </div>
-            <form onSubmit={onEmailCapture} className="flex gap-2">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@company.com"
-                className="flex-1 px-4 py-2.5 border border-border-dark bg-transparent text-sm text-white outline-none focus:border-accent-cyan"
-                disabled={emailStatus === "sending"}
-              />
-              <button
-                type="submit"
-                disabled={emailStatus === "sending"}
-                className="bg-accent-cyan text-black px-5 py-2.5 text-sm font-bold hover:bg-accent-cyan/80 transition-colors disabled:opacity-60 whitespace-nowrap"
-              >
-                {emailStatus === "sending" ? "Sending..." : "Send Report"}
-              </button>
-            </form>
-            {emailError && <p className="mt-2 text-xs text-red-400">{emailError}</p>}
-          </>
-        )}
-      </div>
 
       {/* Try another */}
       <div className="text-center mt-10">
