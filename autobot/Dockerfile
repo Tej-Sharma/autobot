@@ -16,6 +16,9 @@ WORKDIR /app
 
 COPY --from=base /app /app
 
+# Playwright browsers + OS deps are needed at runtime (worker uses chromium)
+RUN npx playwright install --with-deps chromium
+
 ENV NODE_ENV=production
 ENV ARTIFACT_ROOT=/app/artifacts
 
