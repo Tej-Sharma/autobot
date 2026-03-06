@@ -375,11 +375,49 @@ export async function runAgenticTest(input: {
       },
     ];
 
-    const MAX_TURNS = 40;
+    const MAX_TURNS = 25;
+    const KEEP_RECENT_TURNS = 4; // Keep last N turn-pairs (assistant+user) with images intact
     let done = false;
 
     for (let turn = 0; turn < MAX_TURNS && !done; turn++) {
-      console.log(`[agentic] turn ${turn + 1}/${MAX_TURNS}, calling Claude...`);
+      // Sliding window: strip base64 images from older messages to prevent OOM.
+      // Keep the first user message (with initial screenshot for context) and
+      // the most recent KEEP_RECENT_TURNS turn-pairs with full images.
+      // Older messages get their image blocks replaced with a text placeholder.
+      if (messages.length > KEEP_RECENT_TURNS * 2 + 1) {
+        const cutoff = messages.length - KEEP_RECENT_TURNS * 2;
+        for (let i = 0; i < cutoff; i++) {
+          const msg = messages[i];
+          if (Array.isArray(msg.content)) {
+            messages[i] = {
+              ...msg,
+              content: (msg.content as Anthropic.ContentBlockParam[]).map(
+                (block) => {
+                  if (
+                    block.type === "image" ||
+                    (block.type === "tool_result" &&
+                      Array.isArray((block as Anthropic.ToolResultBlockParam).content))
+                  ) {
+                    if (block.type === "tool_result") {
+                      const tr = block as Anthropic.ToolResultBlockParam;
+                      return {
+                        ...tr,
+                        content: (tr.content as Anthropic.ContentBlockParam[]).filter(
+                          (c) => c.type !== "image",
+                        ),
+                      } as Anthropic.ToolResultBlockParam;
+                    }
+                    return { type: "text" as const, text: "[screenshot omitted]" };
+                  }
+                  return block;
+                },
+              ),
+            };
+          }
+        }
+      }
+
+      console.log(`[agentic] turn ${turn + 1}/${MAX_TURNS}, calling Claude... (msgs: ${messages.length})`);
       let response: Anthropic.Message;
       try {
         response = await client.messages.create({
