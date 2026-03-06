@@ -16,12 +16,6 @@ export function Navbar() {
             </div>
           </Link>
           <div className="hidden md:flex space-x-8 text-sm text-gray-500">
-            <a className="hover:text-accent-cyan transition-colors" href="#how-it-works">
-              How It Works
-            </a>
-            <a className="hover:text-accent-cyan transition-colors" href="#pricing">
-              Pricing
-            </a>
             <Link className="hover:text-accent-cyan transition-colors" href="/me">
               Dashboard
             </Link>
