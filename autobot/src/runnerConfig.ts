@@ -77,6 +77,14 @@ export function parseRunPayload(raw: Record<string, unknown>): TriggerParseResul
       request.prNumber = raw.prNumber;
     }
 
+    if (typeof raw.testMode === 'string' && (raw.testMode === 'agentic' || raw.testMode === 'scriptgen' || raw.testMode === 'screenshots-only')) {
+      request.testMode = raw.testMode;
+    }
+
+    if (typeof raw.credentials === 'object' && raw.credentials && !Array.isArray(raw.credentials)) {
+      request.credentials = raw.credentials as Record<string, string>;
+    }
+
     request.sourceMetadata = {
       source: request.source,
       requestId: stableId(),
