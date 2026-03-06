@@ -17,6 +17,7 @@ import { registerConsoleRoutes } from './consoleApi';
 import { saveLead, getLead, addLeadRun, getLeadRunHistory } from './leads';
 import { sendReportEmail } from './email';
 import { createCheckoutSession, handleStripeWebhook, getSubscriptionStatus } from './billing';
+import { getMonitors, addMonitor, removeMonitor, toggleMonitor } from './monitors';
 import { RunReport } from './types';
 
 const app = express();
@@ -402,6 +403,64 @@ app.get('/api/billing/status', async (req, res) => {
 
   const subscription = await getSubscriptionStatus(email);
   res.json(subscription);
+});
+
+// --- Monitoring endpoints (pro users) ---
+
+app.get('/api/monitors', async (req, res) => {
+  const email = typeof req.query.email === 'string' ? req.query.email.trim().toLowerCase() : '';
+  if (!email) { res.status(400).json({ error: 'email required' }); return; }
+
+  const sub = await getSubscriptionStatus(email);
+  const monitors = await getMonitors(email);
+  res.json({ monitors, plan: sub.plan });
+});
+
+app.post('/api/monitors', jsonBody, async (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const url = typeof req.body?.url === 'string' ? req.body.url.trim() : '';
+  const intervalHours = typeof req.body?.intervalHours === 'number' ? req.body.intervalHours : 24;
+
+  if (!email || !url) {
+    res.status(400).json({ error: 'email and url are required' });
+    return;
+  }
+
+  try { new URL(url); } catch {
+    res.status(400).json({ error: 'Invalid URL' });
+    return;
+  }
+
+  const sub = await getSubscriptionStatus(email);
+  if (!sub.active) {
+    res.status(403).json({ error: 'Pro plan required for monitoring' });
+    return;
+  }
+
+  const monitors = await addMonitor(email, url, intervalHours);
+  res.json({ ok: true, monitors });
+});
+
+app.delete('/api/monitors', jsonBody, async (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const url = typeof req.body?.url === 'string' ? req.body.url.trim() : '';
+  if (!email || !url) { res.status(400).json({ error: 'email and url required' }); return; }
+
+  const monitors = await removeMonitor(email, url);
+  res.json({ ok: true, monitors });
+});
+
+app.patch('/api/monitors', jsonBody, async (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const url = typeof req.body?.url === 'string' ? req.body.url.trim() : '';
+  const enabled = typeof req.body?.enabled === 'boolean' ? req.body.enabled : undefined;
+  if (!email || !url || enabled === undefined) {
+    res.status(400).json({ error: 'email, url, and enabled are required' });
+    return;
+  }
+
+  const monitors = await toggleMonitor(email, url, enabled);
+  res.json({ ok: true, monitors });
 });
 
 registerConsoleRoutes(app, jsonBody);

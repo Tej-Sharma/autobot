@@ -5,6 +5,7 @@ import { executeRun } from "./runner";
 import { qaQueue } from "./queue";
 import { QueuedRun } from "./types";
 import { startIdleMonitor } from "./idleMonitor";
+import { startScheduler } from "./scheduler";
 
 const worker = new Worker<QueuedRun, unknown, "autobot-run">(
   CONFIG.queueName,
@@ -65,5 +66,8 @@ drainQueueEvents();
 if (CONFIG.flyApiToken) {
   startIdleMonitor();
 }
+
+// Start scheduled monitoring for pro users
+startScheduler();
 
 console.log("[worker] running with concurrency", CONFIG.concurrency);

@@ -6,6 +6,16 @@ import Link from "next/link";
 import { Navbar } from "../../components/Navbar";
 import { Footer } from "../../components/Footer";
 
+interface MonitoredUrl {
+  url: string;
+  email: string;
+  intervalHours: number;
+  enabled: boolean;
+  createdAt: string;
+  lastRunAt?: string;
+  lastJobId?: string;
+}
+
 interface LeadProfile {
   email: string;
   runs: string[];
@@ -38,6 +48,10 @@ function MePage() {
   const [inputEmail, setInputEmail] = useState("");
   const [profile, setProfile] = useState<LeadProfile | null>(null);
   const [runs, setRuns] = useState<RunSummary[]>([]);
+  const [monitors, setMonitors] = useState<MonitoredUrl[]>([]);
+  const [newMonitorUrl, setNewMonitorUrl] = useState("");
+  const [newMonitorInterval, setNewMonitorInterval] = useState(24);
+  const [monitorLoading, setMonitorLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -81,6 +95,15 @@ function MePage() {
         })
       );
       setRuns(runDetails.filter(Boolean) as RunSummary[]);
+
+      // Load monitors
+      try {
+        const mRes = await fetch(`/api/monitors?email=${encodeURIComponent(e)}`);
+        if (mRes.ok) {
+          const mData = await mRes.json();
+          setMonitors(mData.monitors || []);
+        }
+      } catch { /* monitors are optional */ }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -128,6 +151,54 @@ function MePage() {
     } catch {
       setError("Stripe is not configured yet");
     }
+  }
+
+  async function addMonitorUrl(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = newMonitorUrl.trim();
+    if (!trimmed) return;
+    try { new URL(trimmed); } catch { setError("Invalid URL"); return; }
+
+    setMonitorLoading(true);
+    try {
+      const res = await fetch("/api/monitors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, url: trimmed, intervalHours: newMonitorInterval }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Failed to add monitor"); return; }
+      setMonitors(data.monitors);
+      setNewMonitorUrl("");
+    } catch {
+      setError("Failed to add monitor");
+    } finally {
+      setMonitorLoading(false);
+    }
+  }
+
+  async function deleteMonitor(url: string) {
+    try {
+      const res = await fetch("/api/monitors", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, url }),
+      });
+      const data = await res.json();
+      if (res.ok) setMonitors(data.monitors);
+    } catch { /* ignore */ }
+  }
+
+  async function toggleMonitorEnabled(url: string, enabled: boolean) {
+    try {
+      const res = await fetch("/api/monitors", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, url, enabled }),
+      });
+      const data = await res.json();
+      if (res.ok) setMonitors(data.monitors);
+    } catch { /* ignore */ }
   }
 
   return (
@@ -248,6 +319,92 @@ function MePage() {
                       </div>
                     </Link>
                   ))}
+                </div>
+              )}
+
+              {/* Monitoring section (pro users) */}
+              {profile.subscription.active && (
+                <div className="mt-10">
+                  <h3 className="text-lg font-semibold dark:text-white mb-4 flex items-center gap-2">
+                    <span className="material-icons text-accent-purple text-xl">monitoring</span>
+                    Monitored URLs ({monitors.length})
+                  </h3>
+
+                  {/* Add monitor form */}
+                  <form onSubmit={addMonitorUrl} className="mb-4 flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="url"
+                      value={newMonitorUrl}
+                      onChange={(e) => setNewMonitorUrl(e.target.value)}
+                      placeholder="https://your-app.com"
+                      className="flex-1 px-4 py-2.5 rounded-lg border border-gray-200 dark:border-border-dark bg-transparent text-sm dark:text-white outline-none focus:border-accent-purple"
+                      disabled={monitorLoading}
+                    />
+                    <select
+                      value={newMonitorInterval}
+                      onChange={(e) => setNewMonitorInterval(Number(e.target.value))}
+                      className="px-3 py-2.5 rounded-lg border border-gray-200 dark:border-border-dark bg-transparent text-sm dark:text-white outline-none"
+                    >
+                      <option value={6}>Every 6h</option>
+                      <option value={12}>Every 12h</option>
+                      <option value={24}>Every 24h</option>
+                      <option value={168}>Weekly</option>
+                    </select>
+                    <button
+                      type="submit"
+                      disabled={monitorLoading}
+                      className="bg-gradient-to-r from-accent-purple to-accent-blue text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:scale-105 transition-transform disabled:opacity-60 whitespace-nowrap"
+                    >
+                      {monitorLoading ? "Adding..." : "Add Monitor"}
+                    </button>
+                  </form>
+
+                  {/* Monitor list */}
+                  {monitors.length === 0 ? (
+                    <p className="text-sm text-gray-500">No monitored URLs yet. Add one above to start daily QA runs.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {monitors.map((m) => (
+                        <div
+                          key={m.url}
+                          className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-border-dark bg-white dark:bg-surface-dark px-4 py-3"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <button
+                              type="button"
+                              onClick={() => toggleMonitorEnabled(m.url, !m.enabled)}
+                              className={`flex-shrink-0 w-9 h-5 rounded-full transition-colors relative ${
+                                m.enabled ? "bg-accent-purple" : "bg-gray-300 dark:bg-gray-600"
+                              }`}
+                            >
+                              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                                m.enabled ? "left-[18px]" : "left-0.5"
+                              }`} />
+                            </button>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium dark:text-white truncate">{m.url}</p>
+                              <p className="text-xs text-gray-500">
+                                Every {m.intervalHours}h
+                                {m.lastRunAt && ` \u00b7 Last run: ${new Date(m.lastRunAt).toLocaleDateString()}`}
+                                {m.lastJobId && (
+                                  <Link href={`/run/${m.lastJobId}`} className="text-accent-purple hover:underline ml-1">
+                                    View
+                                  </Link>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => deleteMonitor(m.url)}
+                            className="text-gray-400 hover:text-red-400 transition-colors flex-shrink-0"
+                          >
+                            <span className="material-icons text-lg">delete_outline</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
