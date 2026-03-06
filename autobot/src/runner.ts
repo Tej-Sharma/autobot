@@ -2,6 +2,7 @@ import path from "node:path";
 import { normalizeBaseUrl, uniqueList } from "./utils";
 import { CONFIG } from "./config";
 import {
+  AiTestReport,
   JobStatus,
   PhaseRecord,
   QueuedRun,
@@ -17,14 +18,16 @@ import { judgeScreenshots } from "./judge";
 import {
   aggregateRunTotals,
   buildPrComment,
+  buildAiTestPrComment,
   writeJsonReport,
   writeMarkdownReport,
 } from "./reporter";
 import { postGithubCommentForActor } from "./github";
 import { ensureEnvironment } from "./environmentManager";
-import { executeBuildPipeline } from "./buildPipeline";
+import { agentFetch, executeBuildPipeline } from "./buildPipeline";
 import { getRepoTokenForActor } from "./repoTokens";
 import { runManagedVisualChecks } from "./managedScreenshotRunner";
+import { crawlHomepageLinks } from "./crawl";
 
 export interface ExecutionResult {
   reportPath: string;
@@ -92,12 +95,24 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
     progressMessage: "resolving base URL and routing plan",
   });
 
-  const routeTokens = uniqueList(payload.routes);
+  let routeTokens = uniqueList(payload.routes);
+
+  // For web-trial runs, crawl the homepage to discover additional routes
+  if (payload.source === 'web-trial' && payload.baseUrl) {
+    await setJobStatus(runId, {
+      status: 'running',
+      progressMessage: 'crawling homepage for routes',
+    });
+    const crawledRoutes = await crawlHomepageLinks(payload.baseUrl, CONFIG.freeTrialCrawlLinks);
+    routeTokens = uniqueList([...routeTokens, ...crawledRoutes]);
+  }
+
   const routeSpecs = resolveRouteSpecs(routeTokens);
   let baseUrl: string;
   let routeRecords: PhaseRecord[] = [];
   let status: JobStatus = "running";
   let statusReason = "";
+  let aiTestReport: AiTestReport | null = null;
 
   try {
     const viewports = payload.viewports.slice(0, 3);
@@ -154,6 +169,51 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
         mode: payload.mode,
         viewports,
       });
+
+      // Run AI test if configured (non-fatal — screenshots still get posted on failure)
+      if (
+        payload.testMode &&
+        payload.testMode !== 'screenshots-only' &&
+        CONFIG.aiTestEnabled
+      ) {
+        const aiMode = payload.testMode === 'agentic' ? 'agentic' : 'scriptgen';
+        await setJobStatus(runId, {
+          status: 'running',
+          progressMessage: `running AI test (${aiMode} mode)`,
+        });
+
+        try {
+          const aiResult = await agentFetch<{
+            success: boolean;
+            report: AiTestReport | null;
+            screenshots: Record<string, string>;
+            error?: string;
+            durationMs: number;
+          }>(env.agentUrl, '/run-ai-test', {
+            mode: aiMode,
+            budget: CONFIG.aiTestBudgetUsd,
+          });
+
+          if (aiResult.success && aiResult.report) {
+            aiTestReport = aiResult.report;
+
+            // Save AI test screenshots to run directory
+            const aiScreenshotDir = path.join(runDir, 'ai-test-screenshots');
+            const fsPromises = await import('node:fs/promises');
+            await fsPromises.mkdir(aiScreenshotDir, { recursive: true });
+            for (const [filename, base64] of Object.entries(aiResult.screenshots)) {
+              await fsPromises.writeFile(
+                path.join(aiScreenshotDir, filename),
+                Buffer.from(base64, 'base64'),
+              );
+            }
+          } else if (aiResult.error) {
+            console.error(`[runner] AI test failed: ${aiResult.error}`);
+          }
+        } catch (aiErr) {
+          console.error('[runner] AI test call failed (non-fatal):', aiErr);
+        }
+      }
     } else {
       // ---- Existing flow: resolve external URL + local Playwright ----
       baseUrl = await resolveEnvironmentUrl(payload);
@@ -225,7 +285,9 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
     });
 
     if (payload.repo && payload.prNumber && payload.source === "github") {
-      const comment = buildPrComment(report);
+      const comment = aiTestReport
+        ? buildAiTestPrComment(report, aiTestReport)
+        : buildPrComment(report);
       try {
         await postGithubCommentForActor(
           payload.repo.owner,

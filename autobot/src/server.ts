@@ -112,12 +112,10 @@ app.post('/api/qa/try', jsonBody, async (req, res) => {
     return;
   }
 
-  const routes = await crawlHomepageLinks(rawUrl, CONFIG.freeTrialCrawlLinks);
-
   const request: RunRequest = {
     environment: 'custom',
     baseUrl: rawUrl,
-    routes,
+    routes: ['/'],
     mode: 'smoke',
     viewports: [{ name: 'desktop', width: 1280, height: 720 }],
     includeJudge: true,
