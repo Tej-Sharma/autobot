@@ -7,7 +7,7 @@ import { RunRequest } from './types';
 import { qaQueue } from './queue';
 import { parseRunPayload, normalizeRequestForExecution } from './runnerConfig';
 import { enqueueRun } from './queue';
-import { getJobStatus } from './state';
+import { getJobStatus, getJobReport } from './state';
 import { checkRateLimit } from './rateLimit';
 import { crawlHomepageLinks } from './crawl';
 import { isRepoAllowed, parseWebhookRun } from './github';
@@ -138,28 +138,21 @@ app.get('/api/qa/jobs/:jobId', async (req, res) => {
   }
 
   const base = `${req.protocol}://${req.get('host')}`;
+
+  // Try reading report from disk (same-machine worker) or Redis (separate worker)
+  let report: unknown = null;
   if (status.reportPath && fs.existsSync(status.reportPath)) {
     try {
-      const rawReport = JSON.parse(fs.readFileSync(status.reportPath, 'utf8'));
-      res.json({
-        ...status,
-        report: rawReport,
-        reportUrl: `${base}/artifacts/${jobId}/qa-report.json`,
-        reportMarkdownUrl: `${base}/artifacts/${jobId}/qa-report.md`,
-      });
-    } catch {
-      res.json({
-        ...status,
-        reportPath: status.reportPath,
-        reportUrl: `${base}/artifacts/${jobId}/qa-report.json`,
-        reportMarkdownUrl: `${base}/artifacts/${jobId}/qa-report.md`,
-      });
-    }
-    return;
+      report = JSON.parse(fs.readFileSync(status.reportPath, 'utf8'));
+    } catch { /* ignore */ }
+  }
+  if (!report) {
+    report = await getJobReport(jobId);
   }
 
   res.json({
     ...status,
+    ...(report ? { report } : {}),
     reportUrl: `${base}/artifacts/${jobId}/qa-report.json`,
     reportMarkdownUrl: `${base}/artifacts/${jobId}/qa-report.md`,
   });

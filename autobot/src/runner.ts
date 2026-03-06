@@ -10,7 +10,7 @@ import {
   RunReport,
   RunTotals,
 } from "./types";
-import { setJobStatus, ensureArtifactDir } from "./state";
+import { setJobStatus, setJobReport, ensureArtifactDir } from "./state";
 import { resolveRouteSpecs } from "./manifest";
 import { resolvePreviewUrl } from "./vercel";
 import { runVisualChecks } from "./screenshotRunner";
@@ -277,6 +277,7 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
 
     const reportPath = await writeJsonReport(runId, report);
     const markdownPath = await writeMarkdownReport(runId, report);
+    await setJobReport(runId, report);
 
     await setJobStatus(runId, {
       status,
@@ -349,6 +350,7 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
 
     const reportPath = await writeJsonReport(runId, fallback);
     await writeMarkdownReport(runId, fallback);
+    await setJobReport(runId, fallback);
 
     if (payload.repo && payload.prNumber && payload.source === "github") {
       const comment = buildPrComment(fallback);

@@ -110,17 +110,9 @@ export default function RunPage() {
       setJob(data);
       setFetchError(null);
 
-      // When terminal, fetch the report JSON
-      if (isTerminal(data.status) && !report) {
-        try {
-          const reportRes = await fetch(`/artifacts/${jobId}/qa-report.json`);
-          if (reportRes.ok) {
-            const reportData = await reportRes.json();
-            setReport(reportData);
-          }
-        } catch {
-          // report fetch failed, non-fatal
-        }
+      // Use the inlined report from the job status response
+      if (isTerminal(data.status) && data.report && !report) {
+        setReport(data.report);
       }
     } catch {
       setFetchError("Network error. Retrying...");

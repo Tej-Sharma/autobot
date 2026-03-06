@@ -35,6 +35,17 @@ export async function getJobStatus(id: string): Promise<StatusRecord | null> {
   return value ? (JSON.parse(value) as StatusRecord) : null;
 }
 
+const REPORT_PREFIX = 'autobot:report:';
+
+export async function setJobReport(id: string, report: unknown): Promise<void> {
+  await redis.set(`${REPORT_PREFIX}${id}`, JSON.stringify(report), 'EX', CONFIG.jobStatusTtlSeconds);
+}
+
+export async function getJobReport(id: string): Promise<unknown | null> {
+  const value = await redis.get(`${REPORT_PREFIX}${id}`);
+  return value ? JSON.parse(value) : null;
+}
+
 export async function ensureArtifactDir(jobId: string): Promise<string> {
   const dir = path.join(CONFIG.artifactRoot, jobId);
   await fs.mkdir(dir, { recursive: true });
