@@ -350,9 +350,13 @@ function ResultsView({
           {totals.score}
         </div>
         <h2 className="text-2xl font-bold dark:text-white mb-1">QA Score</h2>
-        <p className="text-gray-500 dark:text-gray-400">
+        <p className="text-gray-500 dark:text-gray-400 mb-2">
           {report.baseUrl}
         </p>
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-gray-500/10 text-gray-500 dark:text-gray-400 border border-gray-500/20">
+          <span className="material-icons text-xs">visibility</span>
+          Basic visual test — screenshots &amp; layout checks only
+        </span>
       </div>
 
       {/* Summary bar */}
@@ -500,11 +504,17 @@ function ResultsView({
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="material-icons text-accent-purple text-xl">rocket_launch</span>
-              <p className="text-sm font-semibold dark:text-white">Daily Automated Monitoring</p>
+              <p className="text-sm font-semibold dark:text-white">Go beyond screenshots — test actual user flows</p>
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Get daily QA runs on your app with email alerts when issues are detected. Never miss a regression.
+              Pro runs AI-driven tests on signups, checkouts, form submissions, and more. Catch real bugs, not just visual ones.
             </p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-accent-purple/10 text-accent-purple border border-accent-purple/20">Login flows</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-accent-purple/10 text-accent-purple border border-accent-purple/20">Form validation</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-accent-purple/10 text-accent-purple border border-accent-purple/20">API errors</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-accent-purple/10 text-accent-purple border border-accent-purple/20">Daily monitoring</span>
+            </div>
           </div>
           <button
             onClick={onUpgrade}
