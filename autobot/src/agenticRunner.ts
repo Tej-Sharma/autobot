@@ -376,7 +376,7 @@ export async function runAgenticTest(input: {
     ];
 
     const MAX_TURNS = 25;
-    const KEEP_RECENT_TURNS = 4; // Keep last N turn-pairs (assistant+user) with images intact
+    const KEEP_RECENT_TURNS = 2; // Keep last N turn-pairs (assistant+user) with images intact
     let done = false;
 
     for (let turn = 0; turn < MAX_TURNS && !done; turn++) {

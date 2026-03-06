@@ -60,7 +60,7 @@ export const CONFIG = {
   port: parseIntSafe(process.env.PORT, 4000),
   redisUrl: process.env.REDIS_URL ?? "redis://redis:6379",
   queueName: process.env.QUEUE_NAME ?? "autobot-qa",
-  concurrency: parseIntSafe(process.env.WORKER_CONCURRENCY, 2),
+  concurrency: parseIntSafe(process.env.WORKER_CONCURRENCY, 1),
   artifactRoot:
     process.env.ARTIFACT_ROOT ?? path.resolve(process.cwd(), "artifacts"),
   artifactRetentionDays: parseIntSafe(process.env.ARTIFACT_RETENTION_DAYS, 14),
