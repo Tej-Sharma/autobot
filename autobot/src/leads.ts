@@ -30,9 +30,10 @@ export async function getLead(email: string): Promise<Lead | null> {
 
 export async function updateLead(email: string, updates: Partial<Lead>): Promise<void> {
   const existing = await getLead(email);
-  if (!existing) return;
-  const merged = { ...existing, ...updates };
+  const base = existing ?? { email, jobId: '', url: '', createdAt: new Date().toISOString() };
+  const merged = { ...base, ...updates };
   await redis.set(`${LEADS_PREFIX}${email}`, JSON.stringify(merged));
+  await redis.sadd(LEADS_SET, email);
 }
 
 export async function getLeadRunHistory(email: string): Promise<string[]> {

@@ -370,19 +370,27 @@ app.get('/api/leads/me', async (req, res) => {
 
 app.post('/api/billing/checkout', jsonBody, async (req, res) => {
   const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const jobId = typeof req.body?.jobId === 'string' ? req.body.jobId.trim() : '';
+  const url = typeof req.body?.url === 'string' ? req.body.url.trim() : '';
   if (!email) {
     res.status(400).json({ error: 'email is required' });
     return;
   }
 
+  // Ensure a lead record exists so the Stripe webhook can upgrade it
+  const existingLead = await getLead(email);
+  if (!existingLead) {
+    await saveLead({ email, jobId, url, createdAt: new Date().toISOString() });
+  }
+
   try {
     const base = CONFIG.appPublicUrl || `${req.protocol}://${req.get('host')}`;
-    const { url } = await createCheckoutSession(
+    const { url: checkoutUrl } = await createCheckoutSession(
       email,
-      `${base}/dashboard?upgraded=true`,
-      `${base}/run/${req.body?.jobId || ''}?cancelled=true`,
+      `${base}/me?upgraded=true`,
+      `${base}/run/${jobId || ''}?cancelled=true`,
     );
-    res.json({ ok: true, url });
+    res.json({ ok: true, url: checkoutUrl });
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : 'checkout failed' });
   }

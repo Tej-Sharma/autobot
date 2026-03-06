@@ -172,11 +172,13 @@ export default function RunPage() {
       setEmailError("Enter your email first to upgrade");
       return;
     }
+    // Persist email so /me page can load the account after Stripe redirect
+    localStorage.setItem("autobot_email", savedEmail);
     try {
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: savedEmail, jobId }),
+        body: JSON.stringify({ email: savedEmail, jobId, url: report?.baseUrl ?? "" }),
       });
       const data = await res.json();
       if (data.url) {
