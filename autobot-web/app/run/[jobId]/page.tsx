@@ -49,7 +49,6 @@ interface JobStatus {
   progressMessage?: string;
   error?: string;
   reportPath?: string;
-  report?: Report;
 }
 
 const PROGRESS_STEPS = [
@@ -95,6 +94,7 @@ export default function RunPage() {
   const [job, setJob] = useState<JobStatus | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [expandedFindings, setExpandedFindings] = useState<Set<number>>(new Set());
+  const [report, setReport] = useState<Report | null>(null);
   const [email, setEmail] = useState("");
   const [emailStatus, setEmailStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -109,10 +109,23 @@ export default function RunPage() {
       const data = await res.json();
       setJob(data);
       setFetchError(null);
+
+      // When terminal, fetch the report JSON
+      if (isTerminal(data.status) && !report) {
+        try {
+          const reportRes = await fetch(`/artifacts/${jobId}/qa-report.json`);
+          if (reportRes.ok) {
+            const reportData = await reportRes.json();
+            setReport(reportData);
+          }
+        } catch {
+          // report fetch failed, non-fatal
+        }
+      }
     } catch {
       setFetchError("Network error. Retrying...");
     }
-  }, [jobId]);
+  }, [jobId, report]);
 
   useEffect(() => {
     fetchJob();
@@ -145,7 +158,7 @@ export default function RunPage() {
       const res = await fetch("/api/leads/capture", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmed, jobId, url: job?.report?.baseUrl ?? "" }),
+        body: JSON.stringify({ email: trimmed, jobId, url: report?.baseUrl ?? "" }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -182,7 +195,6 @@ export default function RunPage() {
     }
   }
 
-  const report = job?.report;
   const terminal = job ? isTerminal(job.status) : false;
 
   return (
