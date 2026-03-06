@@ -99,13 +99,13 @@ export async function runDueMonitors(): Promise<number> {
         const hasCredentials = Object.keys(creds).length > 0;
 
         const jobId = await enqueueRun({
-          environment: 'managed',
+          environment: 'custom',
           baseUrl: monitor.url,
           routes: ['/'],
           mode: 'smoke',
           viewports: [{ name: 'desktop', width: 1280, height: 720 }],
           includeJudge: true,
-          testMode: 'agentic',
+          testMode: 'screenshots-only',
           source: 'web-trial',
           sourceMetadata: { email, monitor: true, scheduled: true },
           credentials: hasCredentials ? creds : undefined,
