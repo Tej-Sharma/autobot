@@ -137,17 +137,24 @@ app.get('/api/qa/jobs/:jobId', async (req, res) => {
     return;
   }
 
+  // Prevent browser from caching polling responses (avoids stale 304s)
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.set('Pragma', 'no-cache');
+
   const base = `${req.protocol}://${req.get('host')}`;
 
-  // Try reading report from disk (same-machine worker) or Redis (separate worker)
+  // Try reading report from Redis first (works across separate server/worker services),
+  // then fall back to disk (same-machine worker)
   let report: unknown = null;
-  if (status.reportPath && fs.existsSync(status.reportPath)) {
+  try {
+    report = await getJobReport(jobId);
+  } catch (err) {
+    console.error(`[api] failed to read report from Redis for ${jobId}:`, err);
+  }
+  if (!report && status.reportPath && fs.existsSync(status.reportPath)) {
     try {
       report = JSON.parse(fs.readFileSync(status.reportPath, 'utf8'));
     } catch { /* ignore */ }
-  }
-  if (!report) {
-    report = await getJobReport(jobId);
   }
 
   res.json({
@@ -313,13 +320,24 @@ app.post('/api/leads/capture', jsonBody, async (req, res) => {
   await saveLead({ email, jobId, url, createdAt: new Date().toISOString() });
   await addLeadRun(email, jobId);
 
-  // Try to send email report if job has a report
+  // Try to send email report if job has a report (Redis first, then disk)
   let emailSent = false;
-  const status = await getJobStatus(jobId);
-  if (status?.reportPath && fs.existsSync(status.reportPath)) {
+  let reportForEmail: RunReport | null = null;
+  try {
+    const redisReport = await getJobReport(jobId);
+    if (redisReport) reportForEmail = redisReport as RunReport;
+  } catch { /* ignore */ }
+  if (!reportForEmail) {
+    const status = await getJobStatus(jobId);
+    if (status?.reportPath && fs.existsSync(status.reportPath)) {
+      try {
+        reportForEmail = JSON.parse(fs.readFileSync(status.reportPath, 'utf8')) as RunReport;
+      } catch { /* ignore */ }
+    }
+  }
+  if (reportForEmail) {
     try {
-      const report = JSON.parse(fs.readFileSync(status.reportPath, 'utf8')) as RunReport;
-      const result = await sendReportEmail(email, jobId, report);
+      const result = await sendReportEmail(email, jobId, reportForEmail);
       emailSent = result.ok;
     } catch {
       // email sending is best-effort

@@ -23,6 +23,7 @@ interface Phase {
   routePath: string;
   viewport: string;
   screenshotPath: string;
+  screenshotBase64?: string;
   status: string;
   judge?: PhaseJudgment;
 }
@@ -122,11 +123,12 @@ export default function RunPage() {
   useEffect(() => {
     fetchJob();
     const interval = setInterval(() => {
-      if (job && isTerminal(job.status)) return;
+      // Keep polling if not terminal, or if terminal but report hasn't loaded yet
+      if (job && isTerminal(job.status) && report) return;
       fetchJob();
     }, 2000);
     return () => clearInterval(interval);
-  }, [fetchJob, job?.status]);
+  }, [fetchJob, job?.status, report]);
 
   const toggleFinding = (idx: number) => {
     setExpandedFindings((prev) => {
@@ -207,8 +209,8 @@ export default function RunPage() {
           )}
 
           {job && !terminal && <ProgressView job={job} />}
-          {job && terminal && job.status === "failed" && !report && (
-            <FailedView error={job.error} />
+          {job && terminal && !report && (
+            <FailedView error={job.error || (job.status !== "failed" ? "Report data is loading. Please refresh the page." : undefined)} />
           )}
           {job && terminal && report && (
             <ResultsView
@@ -323,16 +325,20 @@ function ResultsView({
 }) {
   const { totals, phases } = report;
 
-  function screenshotUrl(rawPath: string): string {
-    // Handle absolute paths from the report by extracting the relative part after jobId
-    const jobIdIdx = rawPath.indexOf(jobId);
+  function screenshotSrc(phase: Phase): string | null {
+    // Prefer base64 data embedded in the report (works across separate services)
+    if (phase.screenshotBase64) {
+      return `data:image/png;base64,${phase.screenshotBase64}`;
+    }
+    // Fallback to artifact path (only works when server/worker share disk)
+    if (!phase.screenshotPath) return null;
+    const jobIdIdx = phase.screenshotPath.indexOf(jobId);
     if (jobIdIdx !== -1) {
-      const relative = rawPath.slice(jobIdIdx + jobId.length + 1);
+      const relative = phase.screenshotPath.slice(jobIdIdx + jobId.length + 1);
       return `/artifacts/${jobId}/${relative}`;
     }
-    // Already relative
-    if (rawPath.startsWith("/")) return rawPath;
-    return `/artifacts/${jobId}/${rawPath}`;
+    if (phase.screenshotPath.startsWith("/")) return phase.screenshotPath;
+    return `/artifacts/${jobId}/${phase.screenshotPath}`;
   }
   const allFindings: Finding[] = phases.flatMap((p) => p.judge?.findings ?? []);
 
@@ -382,14 +388,17 @@ function ResultsView({
       <h3 className="text-lg font-semibold dark:text-white mb-4">Screenshots</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
         {phases
-          .filter((p) => p.status === "captured" && p.screenshotPath)
-          .map((phase, i) => (
+          .filter((p) => p.status === "captured" && (p.screenshotBase64 || p.screenshotPath))
+          .map((phase, i) => {
+            const src = screenshotSrc(phase);
+            if (!src) return null;
+            return (
             <div
               key={i}
               className="rounded-xl overflow-hidden border border-gray-200 dark:border-border-dark bg-white dark:bg-surface-dark"
             >
               <img
-                src={screenshotUrl(phase.screenshotPath)}
+                src={src}
                 alt={`${phase.routePath} - ${phase.viewport}`}
                 className="w-full h-auto"
                 loading="lazy"
@@ -406,7 +415,8 @@ function ResultsView({
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
       </div>
 
       {/* Findings list */}

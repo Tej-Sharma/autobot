@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { normalizeBaseUrl, uniqueList } from "./utils";
 import { CONFIG } from "./config";
@@ -277,7 +278,22 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
 
     const reportPath = await writeJsonReport(runId, report);
     const markdownPath = await writeMarkdownReport(runId, report);
-    await setJobReport(runId, report);
+
+    // Embed screenshot base64 data in the Redis copy so the API server
+    // (which runs on a separate Render service with no shared disk) can
+    // serve images to the frontend.
+    const reportForRedis = JSON.parse(JSON.stringify(report)) as RunReport & { phases: (PhaseRecord & { screenshotBase64?: string })[] };
+    for (const phase of reportForRedis.phases) {
+      if (phase.status === "captured" && phase.screenshotPath) {
+        try {
+          const data = fs.readFileSync(phase.screenshotPath);
+          phase.screenshotBase64 = data.toString("base64");
+        } catch {
+          // skip unreadable screenshots
+        }
+      }
+    }
+    await setJobReport(runId, reportForRedis);
 
     await setJobStatus(runId, {
       status,
@@ -350,7 +366,17 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
 
     const reportPath = await writeJsonReport(runId, fallback);
     await writeMarkdownReport(runId, fallback);
-    await setJobReport(runId, fallback);
+
+    const fallbackForRedis = JSON.parse(JSON.stringify(fallback)) as RunReport & { phases: (PhaseRecord & { screenshotBase64?: string })[] };
+    for (const phase of fallbackForRedis.phases) {
+      if (phase.status === "captured" && phase.screenshotPath) {
+        try {
+          const data = fs.readFileSync(phase.screenshotPath);
+          phase.screenshotBase64 = data.toString("base64");
+        } catch { /* skip */ }
+      }
+    }
+    await setJobReport(runId, fallbackForRedis);
 
     if (payload.repo && payload.prNumber && payload.source === "github") {
       const comment = buildPrComment(fallback);
