@@ -265,9 +265,9 @@ app.post('/api/github/webhook', rawGithub, async (req, res) => {
       const repoConfig = await getRepoConfig(repoFullName);
       const testMode = repoConfig?.testMode ?? 'screenshots-only';
 
-      // Use 'managed' environment for AI test modes (agentic/scriptgen)
-      // which provisions a Fly machine. Screenshots-only uses 'preview' (existing behavior).
-      const environment = testMode !== 'screenshots-only' ? 'managed' : 'preview';
+      // All test modes now run on the worker directly (no Fly machines needed).
+      // 'preview' resolves the Vercel preview URL; agentic/scriptgen run locally.
+      const environment = 'preview';
 
       const request: RunRequest = {
         environment,

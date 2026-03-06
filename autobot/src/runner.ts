@@ -29,6 +29,7 @@ import { agentFetch, executeBuildPipeline } from "./buildPipeline";
 import { getRepoTokenForActor } from "./repoTokens";
 import { runManagedVisualChecks } from "./managedScreenshotRunner";
 import { crawlHomepageLinks } from "./crawl";
+import { runAgenticTest } from "./agenticRunner";
 
 export interface ExecutionResult {
   reportPath: string;
@@ -273,7 +274,48 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
         progressMessage: `resolved environment: ${baseUrl}`,
       });
 
-      routeRecords = await runVisualChecks({
+      // Agentic mode: use AI-driven browser exploration directly on worker
+      if (
+        payload.testMode === "agentic" &&
+        CONFIG.anthropicApiKey &&
+        CONFIG.aiTestEnabled
+      ) {
+        await setJobStatus(runId, {
+          status: "running",
+          progressMessage: `running AI agentic test against ${baseUrl}`,
+        });
+
+        try {
+          const agenticScreenshotDir = path.join(runDir, "agentic-screenshots");
+          aiTestReport = await runAgenticTest({
+            baseUrl,
+            credentials: payload.credentials,
+            screenshotDir: agenticScreenshotDir,
+            jobId: runId,
+          });
+
+          // Create phase records from agentic screenshots for the report
+          for (const key of aiTestReport.screenshotKeys) {
+            const ssPath = path.join(agenticScreenshotDir, key);
+            if (fs.existsSync(ssPath)) {
+              routeRecords.push({
+                routeKey: "agentic-test",
+                routePath: "/",
+                phase: key.replace(".png", ""),
+                viewport: "desktop",
+                screenshotPath: ssPath,
+                url: baseUrl,
+                status: "captured",
+              });
+            }
+          }
+        } catch (agenticErr) {
+          console.error("[runner] agentic test failed:", agenticErr);
+        }
+      }
+
+      // Always run visual checks (screenshots + judge) as baseline
+      const visualRecords = await runVisualChecks({
         jobId: runId,
         runDir,
         baseUrl,
@@ -281,6 +323,7 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
         mode: payload.mode,
         viewports,
       });
+      routeRecords = [...routeRecords, ...visualRecords];
     }
 
     await setJobStatus(runId, {

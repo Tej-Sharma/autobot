@@ -105,7 +105,7 @@ export async function runDueMonitors(): Promise<number> {
           mode: 'smoke',
           viewports: [{ name: 'desktop', width: 1280, height: 720 }],
           includeJudge: true,
-          testMode: 'screenshots-only',
+          testMode: 'agentic',
           source: 'web-trial',
           sourceMetadata: { email, monitor: true, scheduled: true },
           credentials: hasCredentials ? creds : undefined,

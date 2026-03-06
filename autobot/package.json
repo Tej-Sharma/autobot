@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.37",
+    "@anthropic-ai/sdk": "^0.78.0",
     "@octokit/rest": "^20.0.2",
     "@playwright/test": "^1.54.0",
     "bullmq": "^5.25.3",
