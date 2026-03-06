@@ -390,6 +390,33 @@ function ResultsView({
         )}
       </div>
 
+      {/* Upgrade CTA */}
+      <div className="mb-10 rounded-xl border border-accent-purple/30 bg-gradient-to-r from-accent-purple/5 to-accent-blue/5 p-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="material-icons text-accent-purple text-xl">rocket_launch</span>
+              <p className="text-sm font-semibold dark:text-white">Go beyond screenshots — test actual user flows</p>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Pro runs AI-driven tests on signups, checkouts, form submissions, and more. Catch real bugs, not just visual ones.
+            </p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-accent-purple/10 text-accent-purple border border-accent-purple/20">Login flows</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-accent-purple/10 text-accent-purple border border-accent-purple/20">Form validation</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-accent-purple/10 text-accent-purple border border-accent-purple/20">API errors</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-accent-purple/10 text-accent-purple border border-accent-purple/20">Daily monitoring</span>
+            </div>
+          </div>
+          <button
+            onClick={onUpgrade}
+            className="bg-gradient-to-r from-accent-purple to-accent-blue text-white px-6 py-2.5 rounded-full text-sm font-semibold hover:scale-105 transition-transform whitespace-nowrap"
+          >
+            Upgrade to Pro
+          </button>
+        </div>
+      </div>
+
       {/* Screenshot grid */}
       <h3 className="text-lg font-semibold dark:text-white mb-4">Screenshots</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
@@ -498,33 +525,6 @@ function ResultsView({
             {emailError && <p className="mt-2 text-xs text-red-400">{emailError}</p>}
           </>
         )}
-      </div>
-
-      {/* Upgrade CTA */}
-      <div className="mt-4 rounded-xl border border-accent-purple/30 bg-gradient-to-r from-accent-purple/5 to-accent-blue/5 p-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="material-icons text-accent-purple text-xl">rocket_launch</span>
-              <p className="text-sm font-semibold dark:text-white">Go beyond screenshots — test actual user flows</p>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Pro runs AI-driven tests on signups, checkouts, form submissions, and more. Catch real bugs, not just visual ones.
-            </p>
-            <div className="flex flex-wrap gap-2 mt-2">
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-accent-purple/10 text-accent-purple border border-accent-purple/20">Login flows</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-accent-purple/10 text-accent-purple border border-accent-purple/20">Form validation</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-accent-purple/10 text-accent-purple border border-accent-purple/20">API errors</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-accent-purple/10 text-accent-purple border border-accent-purple/20">Daily monitoring</span>
-            </div>
-          </div>
-          <button
-            onClick={onUpgrade}
-            className="bg-gradient-to-r from-accent-purple to-accent-blue text-white px-6 py-2.5 rounded-full text-sm font-semibold hover:scale-105 transition-transform whitespace-nowrap"
-          >
-            Upgrade to Pro
-          </button>
-        </div>
       </div>
 
       {/* Try another */}
