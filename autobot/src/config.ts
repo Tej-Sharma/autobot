@@ -98,6 +98,19 @@ export const CONFIG = {
   autoRunOnPrOpen: parseBoolean(process.env.AUTO_RUN_PREVIEW_ON_PR_OPEN, true),
   autoRunOnPrSync: parseBoolean(process.env.AUTO_RUN_PREVIEW_ON_PR_SYNC, true),
 
+  freeTrialMaxPerDay: parseIntSafe(process.env.FREE_TRIAL_MAX_PER_DAY, 3),
+  freeTrialCrawlLinks: parseIntSafe(process.env.FREE_TRIAL_CRAWL_LINKS, 3),
+  appPublicUrl: process.env.APP_PUBLIC_URL ?? "",
+
+  // Resend email
+  resendApiKey: process.env.RESEND_API_KEY ?? "",
+  resendFromEmail: process.env.RESEND_FROM_EMAIL ?? "AutoBot <noreply@autobot.dev>",
+
+  // Stripe
+  stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
+  stripePriceId: process.env.STRIPE_PRICE_ID ?? "",
+
   openAiApiKey: process.env.OPENAI_API_KEY,
   openAiModel: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
   openAiMaxTokens: parseIntSafe(process.env.OPENAI_MAX_TOKENS, 700),
@@ -126,6 +139,8 @@ export const CONFIG = {
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
   agentModel: process.env.AGENT_MODEL ?? "claude-haiku-4-5-20251001",
   agentMaxBudgetUsd: Number.parseFloat(process.env.AGENT_MAX_BUDGET_USD ?? "5"),
+  aiTestEnabled: parseBoolean(process.env.AI_TEST_ENABLED, true),
+  aiTestBudgetUsd: Number.parseFloat(process.env.AI_TEST_BUDGET_USD ?? "3"),
   agentTesterWorkspace:
     process.env.AGENT_TESTER_WORKSPACE ??
     path.resolve(process.cwd(), "artifacts", "testers"),

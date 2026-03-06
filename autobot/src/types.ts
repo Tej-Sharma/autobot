@@ -41,11 +41,14 @@ export interface RunRequest {
   prNumber?: number;
   repo?: RepoRef;
   actor?: string;
-  source: "api" | "github";
+  source: "api" | "github" | "web-trial";
   sourceMetadata: Record<string, unknown>;
   idempotencyKey?: string;
   maxRoutes?: number;
+  testMode?: TestMode;
 }
+
+export type TestMode = 'agentic' | 'scriptgen' | 'screenshots-only';
 
 export interface QueuedRun extends RunRequest {
   jobId: string;
@@ -120,4 +123,30 @@ export interface StatusRecord {
 export interface ManifestMatch {
   key: string;
   spec: RouteFlowConfig;
+}
+
+/* ------------------------------------------------------------------ */
+/*  AI Test Report types                                               */
+/* ------------------------------------------------------------------ */
+
+export interface AiTestReport {
+  status: 'pass' | 'fail' | 'partial' | 'error';
+  flowsTotal: number;
+  flowsPassed: number;
+  flowsFailed: number;
+  flowsSkipped: number;
+  codeFaults: number;
+  findings: AiTestFinding[];
+  costUsd: number;
+  durationMs: number;
+  reportMd: string;
+  screenshotKeys: string[];
+}
+
+export interface AiTestFinding {
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  category: string;
+  message: string;
+  flowId?: string;
+  screenshot?: string;
 }

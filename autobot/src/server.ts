@@ -8,9 +8,16 @@ import { qaQueue } from './queue';
 import { parseRunPayload, normalizeRequestForExecution } from './runnerConfig';
 import { enqueueRun } from './queue';
 import { getJobStatus } from './state';
+import { checkRateLimit } from './rateLimit';
+import { crawlHomepageLinks } from './crawl';
 import { isRepoAllowed, parseWebhookRun } from './github';
 import { upsertRepoTokenMappings } from './repoTokens';
+import { getRepoConfig } from './repoConfig';
 import { registerConsoleRoutes } from './consoleApi';
+import { saveLead, getLead, addLeadRun, getLeadRunHistory } from './leads';
+import { sendReportEmail } from './email';
+import { createCheckoutSession, handleStripeWebhook, getSubscriptionStatus } from './billing';
+import { RunReport } from './types';
 
 const app = express();
 const rawGithub = express.raw({ type: 'application/json', limit: '4mb' });
@@ -77,6 +84,50 @@ app.post('/api/qa/run', jsonBody, async (req, res) => {
     artifactsUrl: `${base}/artifacts/${jobId}`,
     job: `/api/qa/jobs/${jobId}`,
   });
+});
+
+app.post('/api/qa/try', jsonBody, async (req, res) => {
+  const rawUrl = typeof req.body?.url === 'string' ? req.body.url.trim() : '';
+
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      res.status(400).json({ error: 'URL must use http or https' });
+      return;
+    }
+    const hostname = parsed.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname.endsWith('.local') || /^(10|172\.(1[6-9]|2\d|3[01])|192\.168)\./.test(hostname)) {
+      res.status(400).json({ error: 'Private/local URLs are not allowed' });
+      return;
+    }
+  } catch {
+    res.status(400).json({ error: 'Invalid URL' });
+    return;
+  }
+
+  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  const rateCheck = await checkRateLimit(ip, CONFIG.freeTrialMaxPerDay, 86400);
+  if (!rateCheck.allowed) {
+    res.status(429).json({ error: 'rate_limit', retryAfterSec: rateCheck.retryAfterSec, remaining: 0 });
+    return;
+  }
+
+  const routes = await crawlHomepageLinks(rawUrl, CONFIG.freeTrialCrawlLinks);
+
+  const request: RunRequest = {
+    environment: 'custom',
+    baseUrl: rawUrl,
+    routes,
+    mode: 'smoke',
+    viewports: [{ name: 'desktop', width: 1280, height: 720 }],
+    includeJudge: true,
+    testMode: 'screenshots-only',
+    source: 'web-trial',
+    sourceMetadata: { ip, userAgent: req.headers['user-agent'] },
+  };
+
+  const jobId = await enqueueRun(request);
+  res.json({ ok: true, jobId, remaining: rateCheck.remaining });
 });
 
 app.get('/api/qa/jobs/:jobId', async (req, res) => {
@@ -210,8 +261,17 @@ app.post('/api/github/webhook', rawGithub, async (req, res) => {
         return;
       }
 
+      // Load per-repo config for test mode
+      const repoFullName = `${owner}/${repo}`;
+      const repoConfig = await getRepoConfig(repoFullName);
+      const testMode = repoConfig?.testMode ?? 'screenshots-only';
+
+      // Use 'managed' environment for AI test modes (agentic/scriptgen)
+      // which provisions a Fly machine. Screenshots-only uses 'preview' (existing behavior).
+      const environment = testMode !== 'screenshots-only' ? 'managed' : 'preview';
+
       const request: RunRequest = {
-        environment: 'preview',
+        environment,
         routes: CONFIG.defaultRoutes,
         mode: CONFIG.defaultMode,
         viewports: CONFIG.defaultViewports,
@@ -228,6 +288,7 @@ app.post('/api/github/webhook', rawGithub, async (req, res) => {
         sha: payload.pull_request?.head?.sha,
         branch: payload.pull_request?.head?.ref,
         actor: payload.sender?.login,
+        testMode,
       };
 
       const jobId = await enqueueRun(request);
@@ -239,6 +300,110 @@ app.post('/api/github/webhook', rawGithub, async (req, res) => {
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : 'invalid payload' });
   }
+});
+
+// --- Sprint 2: Lead capture + email report ---
+
+app.post('/api/leads/capture', jsonBody, async (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const jobId = typeof req.body?.jobId === 'string' ? req.body.jobId.trim() : '';
+  const url = typeof req.body?.url === 'string' ? req.body.url.trim() : '';
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    res.status(400).json({ error: 'Valid email is required' });
+    return;
+  }
+  if (!jobId) {
+    res.status(400).json({ error: 'jobId is required' });
+    return;
+  }
+
+  await saveLead({ email, jobId, url, createdAt: new Date().toISOString() });
+  await addLeadRun(email, jobId);
+
+  // Try to send email report if job has a report
+  let emailSent = false;
+  const status = await getJobStatus(jobId);
+  if (status?.reportPath && fs.existsSync(status.reportPath)) {
+    try {
+      const report = JSON.parse(fs.readFileSync(status.reportPath, 'utf8')) as RunReport;
+      const result = await sendReportEmail(email, jobId, report);
+      emailSent = result.ok;
+    } catch {
+      // email sending is best-effort
+    }
+  }
+
+  res.json({ ok: true, emailSent });
+});
+
+app.get('/api/leads/me', async (req, res) => {
+  const email = typeof req.query.email === 'string' ? req.query.email.trim().toLowerCase() : '';
+  if (!email) {
+    res.status(400).json({ error: 'email query param required' });
+    return;
+  }
+
+  const lead = await getLead(email);
+  if (!lead) {
+    res.status(404).json({ error: 'lead not found' });
+    return;
+  }
+
+  const runs = await getLeadRunHistory(email);
+  const subscription = await getSubscriptionStatus(email);
+
+  res.json({ ...lead, runs, subscription });
+});
+
+// --- Sprint 3: Stripe billing ---
+
+app.post('/api/billing/checkout', jsonBody, async (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  if (!email) {
+    res.status(400).json({ error: 'email is required' });
+    return;
+  }
+
+  try {
+    const base = CONFIG.appPublicUrl || `${req.protocol}://${req.get('host')}`;
+    const { url } = await createCheckoutSession(
+      email,
+      `${base}/dashboard?upgraded=true`,
+      `${base}/run/${req.body?.jobId || ''}?cancelled=true`,
+    );
+    res.json({ ok: true, url });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : 'checkout failed' });
+  }
+});
+
+const rawStripe = express.raw({ type: 'application/json', limit: '4mb' });
+app.post('/api/billing/webhook', rawStripe, async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  if (!sig || typeof sig !== 'string') {
+    res.status(400).json({ error: 'missing stripe-signature header' });
+    return;
+  }
+
+  try {
+    await handleStripeWebhook(req.body as Buffer, sig);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[stripe webhook]', err instanceof Error ? err.message : err);
+    res.status(400).json({ error: 'webhook verification failed' });
+  }
+});
+
+app.get('/api/billing/status', async (req, res) => {
+  const email = typeof req.query.email === 'string' ? req.query.email.trim().toLowerCase() : '';
+  if (!email) {
+    res.status(400).json({ error: 'email query param required' });
+    return;
+  }
+
+  const subscription = await getSubscriptionStatus(email);
+  res.json(subscription);
 });
 
 registerConsoleRoutes(app, jsonBody);

@@ -3,7 +3,7 @@ WORKDIR /app
 
 COPY autobot/package.json autobot/package-lock.json* autobot/tsconfig.json ./
 
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+RUN if [ -f package-lock.json ]; then npm ci --legacy-peer-deps; else npm install --legacy-peer-deps; fi
 
 RUN npx playwright install --with-deps chromium
 
