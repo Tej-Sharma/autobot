@@ -60,6 +60,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [reposEmpty, setReposEmpty] = useState(false);
   const [selectedRepos, setSelectedRepos] = useState<Set<string>>(new Set());
+  const [testMode, setTestMode] = useState<"screenshots-only" | "scriptgen" | "agentic">("screenshots-only");
   const [runBaseUrl, setRunBaseUrl] = useState("");
 
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
@@ -147,7 +148,7 @@ export default function DashboardPage() {
         tokenSync?: TokenSync;
       }>("/api/webhooks/sync", {
         method: "POST",
-        body: JSON.stringify({ repos: selected }),
+        body: JSON.stringify({ repos: selected, testMode }),
       });
 
       const lines = result.results.map(
@@ -284,14 +285,52 @@ export default function DashboardPage() {
               <button
                 onClick={syncWebhooks}
                 disabled={syncing}
-                className="rounded-full bg-black dark:bg-white text-white dark:text-black px-6 py-3 text-sm font-semibold hover:bg-gray-800 dark:hover:bg-gray-200 transition disabled:opacity-50"
+                className="bg-accent-cyan text-black px-6 py-3 text-sm font-bold hover:bg-accent-cyan/80 transition disabled:opacity-50"
               >
                 {syncing ? "Syncing..." : "Enable webhook on selected repos"}
               </button>
             </div>
 
+            {/* Test mode selector */}
+            <div className="mt-4 mb-8">
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
+                QA test mode for webhook-triggered runs
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                {([
+                  { value: "screenshots-only" as const, label: "Screenshots Only", desc: "Visual QA with GPT-4o judge" },
+                  { value: "scriptgen" as const, label: "Basic Clickthrough", desc: "AI-generated Playwright tests (~$0.30/run)" },
+                  { value: "agentic" as const, label: "Powerful Agentic", desc: "Real-time AI browser testing (~$1.50/run)" },
+                ]).map((option) => (
+                  <label
+                    key={option.value}
+                    className={`flex-1 cursor-pointer rounded-xl border p-3 transition ${
+                      testMode === option.value
+                        ? "border-purple-500 bg-purple-500/10 dark:bg-purple-500/15"
+                        : "border-gray-200 dark:border-white/10 bg-white/40 dark:bg-white/5 hover:border-gray-300 dark:hover:border-white/20"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="testMode"
+                      value={option.value}
+                      checked={testMode === option.value}
+                      onChange={() => setTestMode(option.value)}
+                      className="sr-only"
+                    />
+                    <span className="block font-medium text-sm text-gray-900 dark:text-white">
+                      {option.label}
+                    </span>
+                    <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      {option.desc}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
             {/* Run now */}
-            <div className="mt-4 mb-8 grid gap-3">
+            <div className="mb-8 grid gap-3">
               <label
                 htmlFor="run-base-url"
                 className="text-sm text-gray-600 dark:text-gray-300"
@@ -309,7 +348,7 @@ export default function DashboardPage() {
                 <button
                   onClick={runNow}
                   disabled={running}
-                  className="rounded-full bg-purple-600 text-white px-5 py-2.5 text-sm font-semibold hover:bg-purple-500 transition disabled:opacity-50"
+                  className="bg-accent-cyan text-black px-5 py-2.5 text-sm font-bold hover:bg-accent-cyan/80 transition disabled:opacity-50"
                 >
                   {running
                     ? "Queuing runs..."

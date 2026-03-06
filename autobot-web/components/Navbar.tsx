@@ -4,34 +4,34 @@ import Link from "next/link";
 
 export function Navbar() {
   return (
-    <nav className="sticky top-0 z-50 border-b border-gray-200 dark:border-white/10 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md">
+    <nav className="sticky top-0 z-50 border-b border-border-dark bg-background-dark/90 backdrop-blur-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-14">
           <Link href="/" className="flex items-center gap-2">
-            <div className="text-2xl font-bold tracking-tighter dark:text-white flex items-center gap-2">
-              <span className="material-icons text-gray-800 dark:text-white">
-                smart_toy
+            <div className="text-xl font-bold tracking-tight text-accent-cyan flex items-center gap-2">
+              <span className="material-icons text-accent-cyan text-xl">
+                terminal
               </span>
               AutoBot
             </div>
           </Link>
-          <div className="hidden md:flex space-x-8 text-sm font-medium text-gray-600 dark:text-gray-400">
-            <a className="hover:text-gray-900 dark:hover:text-white transition-colors" href="#how-it-works">
+          <div className="hidden md:flex space-x-8 text-sm text-gray-500">
+            <a className="hover:text-accent-cyan transition-colors" href="#how-it-works">
               How It Works
             </a>
-            <a className="hover:text-gray-900 dark:hover:text-white transition-colors" href="#pricing">
+            <a className="hover:text-accent-cyan transition-colors" href="#pricing">
               Pricing
             </a>
-            <Link className="hover:text-gray-900 dark:hover:text-white transition-colors" href="/me">
+            <Link className="hover:text-accent-cyan transition-colors" href="/me">
               Dashboard
             </Link>
           </div>
           <div className="flex items-center space-x-4">
             <Link
               href="/"
-              className="bg-gradient-to-r from-accent-purple to-accent-blue text-white px-4 py-2 rounded-full text-sm font-semibold hover:scale-105 transition-transform"
+              className="border border-accent-cyan text-accent-cyan px-4 py-1.5 text-sm font-bold hover:bg-accent-cyan/10 transition-colors"
             >
-              Test Your App Free
+              Test Free
             </Link>
           </div>
         </div>

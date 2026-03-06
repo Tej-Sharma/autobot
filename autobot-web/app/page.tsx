@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Navbar } from "../components/Navbar";
 import { Hero } from "../components/landing/Hero";
 import { PipelineDemo } from "../components/landing/PipelineDemo";
-import { Integrations } from "../components/landing/Integrations";
+// import { Integrations } from "../components/landing/Integrations";
 import { HowItWorks } from "../components/landing/HowItWorks";
 import { Footer } from "../components/Footer";
 
@@ -45,12 +45,11 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="bg-background-light dark:bg-background-dark text-gray-900 dark:text-gray-200 antialiased font-sans transition-colors duration-300 min-h-screen flex flex-col">
+    <div className="bg-background-dark text-gray-200 antialiased font-mono min-h-screen flex flex-col">
       <Navbar />
 
       <main className="flex-grow relative overflow-hidden">
         <div>
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-gradient-to-b from-purple-500/10 to-transparent blur-[120px] pointer-events-none" />
           <div className="absolute inset-0 bg-grid-pattern opacity-30 pointer-events-none" />
 
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 relative z-10">
@@ -60,7 +59,7 @@ export default function LandingPage() {
               error={error}
             />
             <PipelineDemo />
-            <Integrations />
+            {/* <Integrations /> */}
           </div>
         </div>
 

@@ -11,20 +11,20 @@ interface DashboardNavbarProps {
 
 export function DashboardNavbar({ avatarUrl, login, onLogout }: DashboardNavbarProps) {
   return (
-    <nav className="sticky top-0 z-50 border-b border-gray-200 dark:border-white/10 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md">
+    <nav className="sticky top-0 z-50 border-b border-border-dark bg-background-dark/90 backdrop-blur-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-14">
           <Link href="/" className="flex items-center gap-2">
-            <div className="text-2xl font-bold tracking-tighter dark:text-white flex items-center gap-2">
-              <span className="material-icons text-gray-800 dark:text-white">
-                smart_toy
+            <div className="text-xl font-bold tracking-tight text-accent-cyan flex items-center gap-2 font-mono">
+              <span className="material-icons text-accent-cyan text-xl">
+                terminal
               </span>
-              AutoBot
+              autobot
             </div>
           </Link>
           <div className="flex items-center space-x-4">
             <a
-              className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+              className="inline-flex items-center gap-2 text-sm font-mono text-gray-500 hover:text-accent-cyan transition-colors"
               href="https://github.com/Tej-Sharma/autobot"
               target="_blank"
               rel="noopener noreferrer"
@@ -37,19 +37,19 @@ export function DashboardNavbar({ avatarUrl, login, onLogout }: DashboardNavbarP
               {avatarUrl && (
                 <img
                   alt="user"
-                  className="h-8 w-8 rounded-full ring-1 ring-purple-400/50"
+                  className="h-8 w-8 border border-accent-cyan/30"
                   src={avatarUrl}
                 />
               )}
               {login && (
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-300 hidden sm:inline font-mono">
+                <span className="text-sm font-mono text-gray-400 hidden sm:inline">
                   @{login}
                 </span>
               )}
             </div>
             <button
               onClick={onLogout}
-              className="rounded-full border border-gray-300 dark:border-white/10 text-sm px-4 py-2 bg-white/80 dark:bg-surface-dark/80 hover:bg-gray-100 dark:hover:bg-white/10 transition"
+              className="border border-border-dark text-sm px-4 py-1.5 font-mono text-gray-400 hover:text-accent-cyan hover:border-accent-cyan/30 transition-colors"
             >
               Sign out
             </button>

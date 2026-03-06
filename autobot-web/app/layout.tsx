@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "AutoBot",
-  description: "Autobot dashboard for GitHub-driven QA automation",
+  description: "AI-powered QA testing for your web apps",
 };
 
 export default function RootLayout({
@@ -22,7 +22,7 @@ export default function RootLayout({
           rel="preconnect"
         />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap"
           rel="stylesheet"
         />
         <link

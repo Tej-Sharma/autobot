@@ -70,18 +70,18 @@ function getActiveStep(status: string, progressMessage?: string): number {
 }
 
 function scoreColor(score: number): string {
-  if (score > 80) return "text-green-400 border-green-400/30 bg-green-400/10";
-  if (score > 50) return "text-yellow-400 border-yellow-400/30 bg-yellow-400/10";
+  if (score > 80) return "text-accent-green border-accent-green/30 bg-accent-green/10";
+  if (score > 50) return "text-accent-amber border-accent-amber/30 bg-accent-amber/10";
   return "text-red-400 border-red-400/30 bg-red-400/10";
 }
 
 function severityColor(severity: string): string {
   switch (severity) {
-    case "blocking": return "bg-red-500/20 text-red-400 border-red-500/30";
-    case "high": return "bg-orange-500/20 text-orange-400 border-orange-500/30";
-    case "medium": return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
-    case "low": return "bg-blue-500/20 text-blue-400 border-blue-500/30";
-    default: return "bg-gray-500/20 text-gray-400 border-gray-500/30";
+    case "blocking": return "bg-red-500/10 text-red-400 border border-red-500/20";
+    case "high": return "bg-orange-500/10 text-orange-400 border border-orange-500/20";
+    case "medium": return "bg-accent-amber/10 text-accent-amber border border-accent-amber/20";
+    case "low": return "bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20";
+    default: return "bg-gray-500/10 text-gray-500 border border-gray-500/20";
   }
 }
 
@@ -111,7 +111,6 @@ export default function RunPage() {
       setJob(data);
       setFetchError(null);
 
-      // Use the inlined report from the job status response
       if (isTerminal(data.status) && data.report && !report) {
         setReport(data.report);
       }
@@ -123,7 +122,6 @@ export default function RunPage() {
   useEffect(() => {
     fetchJob();
     const interval = setInterval(() => {
-      // Keep polling if not terminal, or if terminal but report hasn't loaded yet
       if (job && isTerminal(job.status) && report) return;
       fetchJob();
     }, 2000);
@@ -172,7 +170,6 @@ export default function RunPage() {
       setEmailError("Enter your email first to upgrade");
       return;
     }
-    // Persist email so /me page can load the account after Stripe redirect
     localStorage.setItem("autobot_email", savedEmail);
     try {
       const res = await fetch("/api/billing/checkout", {
@@ -194,17 +191,17 @@ export default function RunPage() {
   const terminal = job ? isTerminal(job.status) : false;
 
   return (
-    <div className="bg-background-light dark:bg-background-dark text-gray-900 dark:text-gray-200 antialiased font-sans min-h-screen flex flex-col">
+    <div className="bg-background-dark text-gray-200 antialiased font-mono min-h-screen flex flex-col">
       <Navbar />
 
       <main className="flex-grow relative">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[400px] bg-gradient-to-b from-purple-500/10 to-transparent blur-[120px] pointer-events-none" />
+        <div className="absolute inset-0 bg-grid-pattern opacity-20 pointer-events-none" />
 
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-24 relative z-10">
           {fetchError && !job && (
             <div className="text-center py-20">
-              <p className="text-lg text-gray-400">{fetchError}</p>
-              <Link href="/" className="mt-4 inline-block text-accent-purple hover:underline">
+              <p className="text-lg text-gray-500">{fetchError}</p>
+              <Link href="/" className="mt-4 inline-block text-accent-cyan hover:underline">
                 Back to home
               </Link>
             </div>
@@ -241,26 +238,26 @@ function ProgressView({ job }: { job: JobStatus }) {
 
   return (
     <div className="text-center py-16">
-      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent-purple/10 text-accent-purple text-sm font-medium mb-8">
-        <span className="inline-block w-2 h-2 rounded-full bg-accent-purple animate-pulse" />
+      <div className="inline-flex items-center gap-2 px-4 py-2 border border-accent-cyan/30 bg-accent-cyan/5 text-accent-cyan text-sm font-bold mb-8">
+        <span className="inline-block w-2 h-2 bg-accent-cyan animate-blink" />
         Testing in progress
       </div>
 
-      <h2 className="text-2xl font-bold dark:text-white mb-2">Analyzing your app...</h2>
+      <h2 className="text-2xl font-bold text-white mb-2">Analyzing your app...</h2>
       {job.progressMessage && (
-        <p className="text-gray-500 dark:text-gray-400 mb-12">{job.progressMessage}</p>
+        <p className="text-gray-500 mb-12 text-sm">{job.progressMessage}</p>
       )}
 
-      <div className="max-w-md mx-auto space-y-4">
+      <div className="max-w-md mx-auto space-y-3">
         {PROGRESS_STEPS.map((step, i) => {
           const isActive = i === activeStep;
           const isDone = i < activeStep;
           return (
             <div
               key={step.label}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
+              className={`flex items-center gap-3 px-4 py-3 transition-all duration-300 ${
                 isActive
-                  ? "bg-accent-purple/10 border border-accent-purple/30"
+                  ? "border border-accent-cyan/30 bg-accent-cyan/5"
                   : isDone
                   ? "opacity-60"
                   : "opacity-30"
@@ -268,14 +265,14 @@ function ProgressView({ job }: { job: JobStatus }) {
             >
               <div className="flex-shrink-0">
                 {isDone ? (
-                  <span className="material-icons text-green-400 text-xl">check_circle</span>
+                  <span className="material-icons text-accent-green text-xl">check_circle</span>
                 ) : isActive ? (
-                  <span className="inline-block w-5 h-5 border-2 border-accent-purple/30 border-t-accent-purple rounded-full animate-spin" />
+                  <span className="inline-block w-5 h-5 border-2 border-accent-cyan/30 border-t-accent-cyan rounded-full animate-spin" />
                 ) : (
-                  <span className="inline-block w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-600" />
+                  <span className="inline-block w-5 h-5 border-2 border-gray-700" />
                 )}
               </div>
-              <span className={`text-sm font-medium ${isActive ? "dark:text-white" : ""}`}>
+              <span className={`text-sm font-bold ${isActive ? "text-white" : ""}`}>
                 {step.label}
               </span>
             </div>
@@ -290,11 +287,11 @@ function FailedView({ error }: { error?: string }) {
   return (
     <div className="text-center py-16">
       <span className="material-icons text-red-400 text-5xl mb-4">error_outline</span>
-      <h2 className="text-2xl font-bold dark:text-white mb-2">Test Run Failed</h2>
-      <p className="text-gray-500 dark:text-gray-400 mb-6">{error || "An unexpected error occurred."}</p>
+      <h2 className="text-2xl font-bold text-white mb-2">Test Run Failed</h2>
+      <p className="text-gray-500 mb-6 text-sm">{error || "An unexpected error occurred."}</p>
       <Link
         href="/"
-        className="inline-flex items-center gap-2 bg-gradient-to-r from-accent-purple to-accent-blue text-white px-6 py-3 rounded-full text-sm font-semibold hover:scale-105 transition-transform"
+        className="inline-flex items-center gap-2 bg-accent-cyan text-black px-6 py-3 text-sm font-bold hover:bg-accent-cyan/80 transition-colors"
       >
         Try Again
       </Link>
@@ -328,11 +325,9 @@ function ResultsView({
   const { totals, phases } = report;
 
   function screenshotSrc(phase: Phase): string | null {
-    // Prefer base64 data embedded in the report (works across separate services)
     if (phase.screenshotBase64) {
       return `data:image/png;base64,${phase.screenshotBase64}`;
     }
-    // Fallback to artifact path (only works when server/worker share disk)
     if (!phase.screenshotPath) return null;
     const jobIdIdx = phase.screenshotPath.indexOf(jobId);
     if (jobIdIdx !== -1) {
@@ -348,14 +343,14 @@ function ResultsView({
     <div>
       {/* Score badge */}
       <div className="text-center mb-10">
-        <div className={`inline-flex items-center justify-center w-28 h-28 rounded-full border-4 text-4xl font-bold mb-4 ${scoreColor(totals.score)}`}>
+        <div className={`inline-flex items-center justify-center w-28 h-28 border-2 text-4xl font-bold mb-4 ${scoreColor(totals.score)}`}>
           {totals.score}
         </div>
-        <h2 className="text-2xl font-bold dark:text-white mb-1">QA Score</h2>
-        <p className="text-gray-500 dark:text-gray-400 mb-2">
+        <h2 className="text-2xl font-bold text-white mb-1">QA Score</h2>
+        <p className="text-gray-500 mb-2 text-sm">
           {report.baseUrl}
         </p>
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-gray-500/10 text-gray-500 dark:text-gray-400 border border-gray-500/20">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold bg-gray-500/10 text-gray-500 border border-gray-500/20">
           <span className="material-icons text-xs">visibility</span>
           Basic visual test — screenshots &amp; layout checks only
         </span>
@@ -364,53 +359,53 @@ function ResultsView({
       {/* Summary bar */}
       <div className="flex flex-wrap justify-center gap-3 mb-10">
         {totals.blocking > 0 && (
-          <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-400 border border-red-500/30">
+          <span className="px-3 py-1 text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20">
             {totals.blocking} blocking
           </span>
         )}
         {totals.high > 0 && (
-          <span className="px-3 py-1 rounded-full text-xs font-medium bg-orange-500/20 text-orange-400 border border-orange-500/30">
+          <span className="px-3 py-1 text-xs font-bold bg-orange-500/10 text-orange-400 border border-orange-500/20">
             {totals.high} high
           </span>
         )}
         {totals.medium > 0 && (
-          <span className="px-3 py-1 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+          <span className="px-3 py-1 text-xs font-bold bg-accent-amber/10 text-accent-amber border border-accent-amber/20">
             {totals.medium} medium
           </span>
         )}
         {totals.low > 0 && (
-          <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30">
+          <span className="px-3 py-1 text-xs font-bold bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20">
             {totals.low} low
           </span>
         )}
         {allFindings.length === 0 && (
-          <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/30">
+          <span className="px-3 py-1 text-xs font-bold bg-accent-green/10 text-accent-green border border-accent-green/20">
             No issues found
           </span>
         )}
       </div>
 
       {/* Upgrade CTA */}
-      <div className="mb-10 rounded-xl border border-accent-purple/30 bg-gradient-to-r from-accent-purple/5 to-accent-blue/5 p-6">
+      <div className="mb-10 border border-accent-cyan/20 bg-accent-cyan/5 p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="material-icons text-accent-purple text-xl">rocket_launch</span>
-              <p className="text-sm font-semibold dark:text-white">Go beyond screenshots — test actual user flows</p>
+              <span className="material-icons text-accent-cyan text-xl">rocket_launch</span>
+              <p className="text-sm font-bold text-white">Go beyond screenshots — test actual user flows</p>
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Pro runs AI-driven tests on signups, checkouts, form submissions, and more. Catch real bugs, not just visual ones.
+            <p className="text-xs text-gray-500">
+              Pro runs AI-driven tests on signups, checkouts, form submissions, and more.
             </p>
             <div className="flex flex-wrap gap-2 mt-2">
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-accent-purple/10 text-accent-purple border border-accent-purple/20">Login flows</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-accent-purple/10 text-accent-purple border border-accent-purple/20">Form validation</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-accent-purple/10 text-accent-purple border border-accent-purple/20">API errors</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-accent-purple/10 text-accent-purple border border-accent-purple/20">Daily monitoring</span>
+              <span className="px-2 py-0.5 text-[10px] font-bold bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20">Login flows</span>
+              <span className="px-2 py-0.5 text-[10px] font-bold bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20">Form validation</span>
+              <span className="px-2 py-0.5 text-[10px] font-bold bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20">API errors</span>
+              <span className="px-2 py-0.5 text-[10px] font-bold bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20">Daily monitoring</span>
             </div>
           </div>
           <button
             onClick={onUpgrade}
-            className="bg-gradient-to-r from-accent-purple to-accent-blue text-white px-6 py-2.5 rounded-full text-sm font-semibold hover:scale-105 transition-transform whitespace-nowrap"
+            className="bg-accent-cyan text-black px-6 py-2.5 text-sm font-bold hover:bg-accent-cyan/80 transition-colors whitespace-nowrap"
           >
             Upgrade to Pro
           </button>
@@ -418,7 +413,7 @@ function ResultsView({
       </div>
 
       {/* Screenshot grid */}
-      <h3 className="text-lg font-semibold dark:text-white mb-4">Screenshots</h3>
+      <h3 className="text-lg font-bold text-white mb-4">Screenshots</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
         {phases
           .filter((p) => p.status === "captured" && (p.screenshotBase64 || p.screenshotPath))
@@ -428,7 +423,7 @@ function ResultsView({
             return (
             <div
               key={i}
-              className="rounded-xl overflow-hidden border border-gray-200 dark:border-border-dark bg-white dark:bg-surface-dark"
+              className="overflow-hidden border border-border-dark bg-surface-dark"
             >
               <img
                 src={src}
@@ -438,11 +433,11 @@ function ResultsView({
               />
               <div className="px-4 py-3 flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium dark:text-white">{phase.routePath}</p>
-                  <p className="text-xs text-gray-500">{phase.viewport}</p>
+                  <p className="text-sm font-bold text-white">{phase.routePath}</p>
+                  <p className="text-xs text-gray-600">{phase.viewport}</p>
                 </div>
                 {phase.judge && (
-                  <div className={`px-2 py-0.5 rounded-full text-xs font-medium ${scoreColor(phase.judge.score)}`}>
+                  <div className={`px-2 py-0.5 text-xs font-bold ${scoreColor(phase.judge.score)}`}>
                     {phase.judge.score}
                   </div>
                 )}
@@ -455,32 +450,32 @@ function ResultsView({
       {/* Findings list */}
       {allFindings.length > 0 && (
         <>
-          <h3 className="text-lg font-semibold dark:text-white mb-4">
+          <h3 className="text-lg font-bold text-white mb-4">
             Findings ({allFindings.length})
           </h3>
-          <div className="space-y-3 mb-10">
+          <div className="space-y-2 mb-10">
             {allFindings.map((finding, i) => (
               <button
                 key={i}
                 type="button"
                 onClick={() => toggleFinding(i)}
-                className="w-full text-left rounded-xl border border-gray-200 dark:border-border-dark bg-white dark:bg-surface-dark overflow-hidden transition-colors hover:border-gray-300 dark:hover:border-gray-600"
+                className="w-full text-left border border-border-dark bg-surface-dark overflow-hidden transition-colors hover:border-accent-cyan/20"
               >
                 <div className="px-4 py-3 flex items-center gap-3">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${severityColor(finding.severity)}`}>
+                  <span className={`px-2 py-0.5 text-xs font-bold ${severityColor(finding.severity)}`}>
                     {finding.severity}
                   </span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase">{finding.category}</span>
-                  <span className="text-sm dark:text-white flex-1 truncate">{finding.message}</span>
-                  <span className="material-icons text-gray-400 text-sm transition-transform" style={{
+                  <span className="text-xs text-gray-600 font-bold uppercase">{finding.category}</span>
+                  <span className="text-sm text-white flex-1 truncate">{finding.message}</span>
+                  <span className="material-icons text-gray-600 text-sm transition-transform" style={{
                     transform: expandedFindings.has(i) ? "rotate(180deg)" : "rotate(0deg)"
                   }}>
                     expand_more
                   </span>
                 </div>
                 {expandedFindings.has(i) && finding.suggestion && (
-                  <div className="px-4 pb-3 pt-0 border-t border-gray-100 dark:border-border-dark">
-                    <p className="text-sm text-gray-600 dark:text-gray-400 pt-3">{finding.suggestion}</p>
+                  <div className="px-4 pb-3 pt-0 border-t border-border-dark">
+                    <p className="text-sm text-gray-500 pt-3">{finding.suggestion}</p>
                   </div>
                 )}
               </button>
@@ -490,18 +485,18 @@ function ResultsView({
       )}
 
       {/* Email capture */}
-      <div className="mt-12 rounded-xl border border-gray-200 dark:border-border-dark bg-white dark:bg-surface-dark p-6">
+      <div className="mt-12 border border-border-dark bg-surface-dark p-6">
         {emailStatus === "sent" ? (
           <div className="text-center">
-            <span className="material-icons text-green-400 text-3xl mb-2">check_circle</span>
-            <p className="text-sm font-medium dark:text-white">Report sent! Check your inbox.</p>
+            <span className="material-icons text-accent-green text-3xl mb-2">check_circle</span>
+            <p className="text-sm font-bold text-white">Report sent! Check your inbox.</p>
           </div>
         ) : (
           <>
             <div className="flex items-center gap-3 mb-4">
-              <span className="material-icons text-accent-purple text-2xl">email</span>
+              <span className="material-icons text-accent-cyan text-2xl">email</span>
               <div>
-                <p className="text-sm font-semibold dark:text-white">Get the full report emailed</p>
+                <p className="text-sm font-bold text-white">Get the full report emailed</p>
                 <p className="text-xs text-gray-500">Screenshots, findings, and score — delivered to your inbox.</p>
               </div>
             </div>
@@ -511,13 +506,13 @@ function ResultsView({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@company.com"
-                className="flex-1 px-4 py-2.5 rounded-lg border border-gray-200 dark:border-border-dark bg-transparent text-sm dark:text-white outline-none focus:border-accent-purple"
+                className="flex-1 px-4 py-2.5 border border-border-dark bg-transparent text-sm text-white outline-none focus:border-accent-cyan"
                 disabled={emailStatus === "sending"}
               />
               <button
                 type="submit"
                 disabled={emailStatus === "sending"}
-                className="bg-gradient-to-r from-accent-purple to-accent-blue text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:scale-105 transition-transform disabled:opacity-60 whitespace-nowrap"
+                className="bg-accent-cyan text-black px-5 py-2.5 text-sm font-bold hover:bg-accent-cyan/80 transition-colors disabled:opacity-60 whitespace-nowrap"
               >
                 {emailStatus === "sending" ? "Sending..." : "Send Report"}
               </button>
@@ -531,7 +526,7 @@ function ResultsView({
       <div className="text-center mt-10">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 bg-gradient-to-r from-accent-purple to-accent-blue text-white px-6 py-3 rounded-full text-sm font-semibold hover:scale-105 transition-transform"
+          className="inline-flex items-center gap-2 border border-accent-cyan text-accent-cyan px-6 py-3 text-sm font-bold hover:bg-accent-cyan/10 transition-colors"
         >
           Test Another App
         </Link>
