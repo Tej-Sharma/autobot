@@ -204,7 +204,7 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
             for (const [filename, base64] of Object.entries(aiResult.screenshots)) {
               await fsPromises.writeFile(
                 path.join(aiScreenshotDir, filename),
-                Buffer.from(base64, 'base64'),
+                Buffer.from(base64 as string, 'base64'),
               );
             }
           } else if (aiResult.error) {

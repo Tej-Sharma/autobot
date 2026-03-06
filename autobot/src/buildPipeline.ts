@@ -31,7 +31,7 @@ export interface BuildPipelineResult {
 /*  Agent HTTP helpers                                                 */
 /* ------------------------------------------------------------------ */
 
-async function agentFetch<T>(agentUrl: string, path: string, body?: unknown): Promise<T> {
+export async function agentFetch<T>(agentUrl: string, path: string, body?: unknown): Promise<T> {
   const url = `${agentUrl}${path}`;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (CONFIG.flyAgentSecret) {
