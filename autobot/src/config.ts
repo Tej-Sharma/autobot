@@ -104,7 +104,7 @@ export const CONFIG = {
 
   // Resend email
   resendApiKey: process.env.RESEND_API_KEY ?? "",
-  resendFromEmail: process.env.RESEND_FROM_EMAIL ?? "AutoBot <noreply@updates.autobot.it.com>",
+  resendFromEmail: process.env.RESEND_FROM_EMAIL ?? "AutoBot <dev@updates.autobot.it.com>",
 
   // Stripe
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",
