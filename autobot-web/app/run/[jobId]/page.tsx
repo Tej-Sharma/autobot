@@ -168,13 +168,18 @@ export default function RunPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: trimmed, jobId, url: report?.baseUrl ?? "" }),
       });
+      const data = await res.json();
       if (!res.ok) {
-        const data = await res.json();
         throw new Error(data.error || "Failed to send");
       }
-      setEmailStatus("sent");
       localStorage.setItem("autobot_email", trimmed);
       posthog.identify(trimmed, { email: trimmed });
+      if (data.emailSent) {
+        setEmailStatus("sent");
+      } else {
+        setEmailError("We saved your email but couldn't send the report. Please check back soon.");
+        setEmailStatus("error");
+      }
     } catch (err) {
       setEmailError(err instanceof Error ? err.message : "Failed to send");
       setEmailStatus("error");

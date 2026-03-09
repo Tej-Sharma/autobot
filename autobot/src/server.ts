@@ -326,21 +326,32 @@ app.post('/api/leads/capture', jsonBody, async (req, res) => {
   try {
     const redisReport = await getJobReport(jobId);
     if (redisReport) reportForEmail = redisReport as RunReport;
-  } catch { /* ignore */ }
+  } catch (err) {
+    console.warn('[leads/capture] failed to get report from Redis:', err instanceof Error ? err.message : err);
+  }
   if (!reportForEmail) {
     const status = await getJobStatus(jobId);
     if (status?.reportPath && fs.existsSync(status.reportPath)) {
       try {
         reportForEmail = JSON.parse(fs.readFileSync(status.reportPath, 'utf8')) as RunReport;
-      } catch { /* ignore */ }
+      } catch (err) {
+        console.warn('[leads/capture] failed to read report from disk:', err instanceof Error ? err.message : err);
+      }
+    } else {
+      console.warn(`[leads/capture] no report found for job ${jobId} (status: ${status?.status}, reportPath: ${status?.reportPath ?? 'none'})`);
     }
   }
   if (reportForEmail) {
     try {
       const result = await sendReportEmail(email, jobId, reportForEmail);
       emailSent = result.ok;
-    } catch {
-      // email sending is best-effort
+      if (!result.ok) {
+        console.error(`[leads/capture] email send failed for ${email}:`, result.error);
+      } else {
+        console.log(`[leads/capture] email sent to ${email} for job ${jobId}`);
+      }
+    } catch (err) {
+      console.error('[leads/capture] email send threw:', err instanceof Error ? err.message : err);
     }
   }
 
