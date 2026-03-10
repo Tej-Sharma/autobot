@@ -70,7 +70,7 @@ export function Hero({ onSubmitUrl, isLoading, error }: HeroProps) {
           <button
             type="submit"
             disabled={isLoading}
-            className="bg-accent-cyan text-black px-6 py-3.5 text-sm font-bold hover:bg-accent-cyan/80 transition-colors disabled:opacity-60 disabled:hover:bg-accent-cyan whitespace-nowrap flex items-center gap-2"
+            className="bg-accent-cyan text-black px-4 sm:px-6 py-3.5 text-sm font-bold hover:bg-accent-cyan/80 transition-colors disabled:opacity-60 disabled:hover:bg-accent-cyan whitespace-nowrap flex items-center gap-2"
           >
             {isLoading ? (
               <>
@@ -78,7 +78,10 @@ export function Hero({ onSubmitUrl, isLoading, error }: HeroProps) {
                 Testing...
               </>
             ) : (
-              "Test My App — Free"
+              <>
+                <span className="hidden sm:inline">Test My App</span>
+                <span className="sm:hidden">Test</span>
+              </>
             )}
           </button>
         </div>

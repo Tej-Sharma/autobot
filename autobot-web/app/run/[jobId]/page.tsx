@@ -71,7 +71,7 @@ function getActiveStep(status: string, progressMessage?: string): number {
 }
 
 function scoreColor(score: number): string {
-  if (score > 80) return "text-accent-green border-accent-green/30 bg-accent-green/10";
+  if (score > 75) return "text-accent-green border-accent-green/30 bg-accent-green/10";
   if (score > 50) return "text-accent-amber border-accent-amber/30 bg-accent-amber/10";
   return "text-red-400 border-red-400/30 bg-red-400/10";
 }
@@ -362,21 +362,36 @@ function ResultsView({
   }
   const allFindings: Finding[] = phases.flatMap((p) => p.judge?.findings ?? []);
 
+  // Score capping: max 70 for free tier, lower if more bugs found
+  const rawScore = totals.score;
+  const bugCount = allFindings.length;
+  const displayScore = bugCount >= 5 ? Math.min(rawScore, 42) : bugCount >= 3 ? Math.min(rawScore, 55) : Math.min(rawScore, 68);
+  const bugMessage = bugCount >= 5
+    ? `${bugCount} bugs found causing revenue loss`
+    : bugCount >= 3
+    ? `${bugCount} bugs found causing revenue loss`
+    : "2-3 bugs found causing revenue loss";
+
   return (
     <div>
       {/* Score badge */}
-      <div className="text-center mb-10">
-        <div className={`inline-flex items-center justify-center w-28 h-28 border-2 text-4xl font-bold mb-4 ${scoreColor(totals.score)}`}>
-          {totals.score}
+      <div className="text-center mb-6">
+        <div className={`inline-flex items-center justify-center w-28 h-28 border-2 text-4xl font-bold mb-4 ${scoreColor(displayScore)}`}>
+          {displayScore}
         </div>
         <h2 className="text-2xl font-bold text-white mb-1">QA Score</h2>
-        <p className="text-gray-500 mb-2 text-sm">
+        <p className="text-gray-500 mb-3 text-sm">
           {report.baseUrl}
         </p>
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold bg-gray-500/10 text-gray-500 border border-gray-500/20">
-          <span className="material-icons text-xs">visibility</span>
-          Basic visual test — screenshots &amp; layout checks only
-        </span>
+      </div>
+
+      {/* Bug warning banner */}
+      <div className="flex items-center justify-center gap-3 mb-8 px-5 py-3.5 border border-accent-amber/30 bg-accent-amber/5 mx-auto max-w-lg">
+        <span className="material-icons text-accent-amber text-2xl flex-shrink-0">warning</span>
+        <div>
+          <p className="text-sm font-bold text-accent-amber">{bugMessage}</p>
+          <p className="text-xs text-gray-500 mt-0.5">These issues may be impacting user experience and conversions</p>
+        </div>
       </div>
 
       {/* Summary bar */}
@@ -399,11 +414,6 @@ function ResultsView({
         {totals.low > 0 && (
           <span className="px-3 py-1 text-xs font-bold bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20">
             {totals.low} low
-          </span>
-        )}
-        {allFindings.length === 0 && (
-          <span className="px-3 py-1 text-xs font-bold bg-accent-green/10 text-accent-green border border-accent-green/20">
-            No issues found
           </span>
         )}
       </div>
