@@ -341,7 +341,22 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
       }
     }
 
-    const totals = aggregateRunTotals(routeRecords);
+    let totals: import("./types").RunTotals;
+    if (aiTestReport) {
+      // Derive totals from agentic findings (judge was skipped)
+      const findings = aiTestReport.findings;
+      totals = {
+        score: findings.length === 0 ? 100 : findings.length >= 5 ? 30 : findings.length >= 3 ? 50 : 70,
+        blocking: findings.filter((f) => f.severity === "critical").length,
+        high: findings.filter((f) => f.severity === "high").length,
+        medium: findings.filter((f) => f.severity === "medium").length,
+        low: findings.filter((f) => f.severity === "low").length,
+        capturedPhases: routeRecords.filter((r) => r.status === "captured").length,
+        failedPhases: routeRecords.filter((r) => r.status === "failed").length,
+      };
+    } else {
+      totals = aggregateRunTotals(routeRecords);
+    }
     status = determineStatusForRun(totals, payload.includeJudge);
 
     if (CONFIG.failOnBlocking && totals.blocking > 0) {
