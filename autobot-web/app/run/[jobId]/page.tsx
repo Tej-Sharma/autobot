@@ -39,10 +39,25 @@ interface Totals {
   failedPhases: number;
 }
 
+interface AiTestFinding {
+  severity: string;
+  category: string;
+  message: string;
+  screenshot?: string;
+}
+
+interface AiTestReport {
+  findings: AiTestFinding[];
+  costUsd: number;
+  durationMs: number;
+  screenshotKeys: string[];
+}
+
 interface Report {
   phases: Phase[];
   totals: Totals;
   baseUrl: string;
+  aiTestReport?: AiTestReport;
 }
 
 interface JobStatus {
@@ -360,7 +375,14 @@ function ResultsView({
     if (phase.screenshotPath.startsWith("/")) return phase.screenshotPath;
     return `/artifacts/${jobId}/${phase.screenshotPath}`;
   }
-  const allFindings: Finding[] = phases.flatMap((p) => p.judge?.findings ?? []);
+  // Prefer agentic findings (from AI tester) over judge findings (from visual checks)
+  const agenticFindings: Finding[] = (report.aiTestReport?.findings ?? []).map((f) => ({
+    severity: f.severity,
+    category: f.category,
+    message: f.message,
+  }));
+  const judgeFindings: Finding[] = phases.flatMap((p) => p.judge?.findings ?? []);
+  const allFindings: Finding[] = agenticFindings.length > 0 ? agenticFindings : judgeFindings;
 
   // Score capping: max 70 for free tier, lower if more bugs found
   const rawScore = totals.score;

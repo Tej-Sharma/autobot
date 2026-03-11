@@ -110,6 +110,7 @@ export interface RunReport {
   phases: PhaseRecord[];
   totals: RunTotals;
   config: Record<string, unknown>;
+  aiTestReport?: AiTestReport;
 }
 
 export interface StatusRecord {

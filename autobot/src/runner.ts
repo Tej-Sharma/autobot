@@ -329,13 +329,16 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
       }
     }
 
-    await setJobStatus(runId, {
-      status: "running",
-      progressMessage: "captured screenshots; running AI judge",
-    });
+    // Skip the judge for agentic runs — the AI agent already found bugs
+    if (!aiTestReport) {
+      await setJobStatus(runId, {
+        status: "running",
+        progressMessage: "captured screenshots; running AI judge",
+      });
 
-    if (payload.includeJudge) {
-      routeRecords = await judgeScreenshots(routeRecords);
+      if (payload.includeJudge) {
+        routeRecords = await judgeScreenshots(routeRecords);
+      }
     }
 
     const totals = aggregateRunTotals(routeRecords);
@@ -370,6 +373,7 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
         sha: payload.sha,
         artifactRoot: path.resolve(runDir),
       },
+      ...(aiTestReport ? { aiTestReport } : {}),
     };
 
     const reportPath = await writeJsonReport(runId, report);
