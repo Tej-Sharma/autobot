@@ -70,7 +70,7 @@ interface JobStatus {
 
 const PROGRESS_STEPS = [
   { label: "Preparing...", keywords: ["received", "queued", "preparing"] },
-  { label: "Crawling pages...", keywords: ["crawl", "routes", "discovering"] },
+  { label: "Testing your app functionality...", keywords: ["crawl", "routes", "discovering"] },
   { label: "Capturing screenshots...", keywords: ["captur", "screenshot", "browser", "navigat"] },
   { label: "Running AI analysis...", keywords: ["judg", "analy", "scor", "openai"] },
 ];

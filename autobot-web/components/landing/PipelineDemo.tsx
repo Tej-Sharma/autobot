@@ -25,8 +25,8 @@ export function PipelineDemo() {
             <div className="absolute inset-0 flex items-center">
               <div className="w-full h-px bg-accent-cyan/30" />
             </div>
-            <svg className="w-full h-8 absolute text-accent-cyan animate-pulse" preserveAspectRatio="none" viewBox="0 0 100 20">
-              <path className="arrow-path opacity-80" d="M0 10 L100 10" stroke="currentColor" strokeDasharray="4 2" strokeWidth="2" />
+            <svg className="w-full h-8 absolute text-accent-cyan" preserveAspectRatio="none" viewBox="0 0 100 20">
+              <path d="M0 10 L100 10" stroke="currentColor" strokeDasharray="4 2" strokeWidth="2" opacity="0.8" />
               <polygon fill="currentColor" points="95,5 100,10 95,15" />
             </svg>
           </div>
@@ -58,8 +58,8 @@ export function PipelineDemo() {
             <div className="absolute inset-0 flex items-center">
               <div className="w-full h-px bg-accent-cyan/30" />
             </div>
-            <svg className="w-full h-8 absolute text-accent-cyan animate-pulse" preserveAspectRatio="none" viewBox="0 0 100 20">
-              <path className="arrow-path opacity-80" d="M0 10 L100 10" stroke="currentColor" strokeDasharray="4 2" strokeWidth="2" />
+            <svg className="w-full h-8 absolute text-accent-cyan" preserveAspectRatio="none" viewBox="0 0 100 20">
+              <path d="M0 10 L100 10" stroke="currentColor" strokeDasharray="4 2" strokeWidth="2" opacity="0.8" />
               <polygon fill="currentColor" points="95,5 100,10 95,15" />
             </svg>
           </div>
@@ -92,7 +92,7 @@ export function PipelineDemo() {
               </marker>
             </defs>
             <path
-              className="opacity-40 arrow-path"
+              className="opacity-40"
               d="M 850 260 C 850 380, 150 380, 150 260"
               fill="none"
               markerEnd="url(#arrowhead)"
