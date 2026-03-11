@@ -374,15 +374,14 @@ function ResultsView({
 
   return (
     <div>
-      {/* Score badge */}
+      {/* Score + label */}
       <div className="text-center mb-6">
         <div className={`inline-flex items-center justify-center w-28 h-28 border-2 text-4xl font-bold mb-4 ${scoreColor(displayScore)}`}>
           {displayScore}
         </div>
         <h2 className="text-2xl font-bold text-white mb-1">QA Score</h2>
-        <p className="text-gray-500 mb-3 text-sm">
-          {report.baseUrl}
-        </p>
+        <p className="text-gray-500 text-sm mb-1">{report.baseUrl}</p>
+        <p className="text-gray-600 text-xs">Free, low-power run completed</p>
       </div>
 
       {/* Bug warning banner */}
@@ -395,7 +394,7 @@ function ResultsView({
       </div>
 
       {/* Summary bar */}
-      <div className="flex flex-wrap justify-center gap-3 mb-10">
+      <div className="flex flex-wrap justify-center gap-3 mb-8">
         {totals.blocking > 0 && (
           <span className="px-3 py-1 text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20">
             {totals.blocking} blocking
@@ -418,65 +417,50 @@ function ResultsView({
         )}
       </div>
 
-      {/* Email capture */}
-      <div className="mb-10 border border-border-dark bg-surface-dark p-6">
+      {/* Email + CTA section */}
+      <div className="mb-10 border border-border-dark bg-surface-dark/80 p-6">
         {emailStatus === "sent" ? (
-          <div className="text-center">
-            <span className="material-icons text-accent-green text-3xl mb-2">check_circle</span>
-            <p className="text-sm font-bold text-white">Report sent! Check your inbox.</p>
+          <div className="text-center mb-4">
+            <span className="material-icons text-accent-green text-2xl mb-1">check_circle</span>
+            <p className="text-sm font-bold text-white">Report sent to your inbox.</p>
           </div>
         ) : (
-          <>
-            <div className="flex items-center gap-3 mb-4">
-              <span className="material-icons text-accent-cyan text-2xl">email</span>
-              <div>
-                <p className="text-sm font-bold text-white">Get the full report emailed</p>
-                <p className="text-xs text-gray-500">Screenshots, findings, and score — delivered to your inbox.</p>
-              </div>
-            </div>
-            <form onSubmit={onEmailCapture} className="flex gap-2">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@company.com"
-                className="flex-1 px-4 py-2.5 border border-border-dark bg-transparent text-sm text-white outline-none focus:border-accent-cyan"
-                disabled={emailStatus === "sending"}
-              />
-              <button
-                type="submit"
-                disabled={emailStatus === "sending"}
-                className="bg-accent-cyan text-black px-5 py-2.5 text-sm font-bold hover:bg-accent-cyan/80 transition-colors disabled:opacity-60 whitespace-nowrap"
-              >
-                {emailStatus === "sending" ? "Sending..." : "Send Report"}
-              </button>
-            </form>
-            {emailError && <p className="mt-2 text-xs text-red-400">{emailError}</p>}
-          </>
+          <form onSubmit={onEmailCapture} className="flex gap-2 mb-4">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@company.com"
+              className="flex-1 px-4 py-2.5 border border-border-dark bg-transparent text-sm text-white outline-none focus:border-accent-cyan/60 placeholder:text-gray-600"
+              disabled={emailStatus === "sending"}
+            />
+            <button
+              type="submit"
+              disabled={emailStatus === "sending"}
+              className="border border-border-dark text-gray-400 px-4 py-2.5 text-sm font-bold hover:border-accent-cyan/40 hover:text-white transition-colors disabled:opacity-60 whitespace-nowrap"
+            >
+              {emailStatus === "sending" ? "Sending..." : "Email report"}
+            </button>
+          </form>
         )}
-      </div>
+        {emailError && <p className="mb-3 text-xs text-red-400">{emailError}</p>}
 
-      {/* Upgrade CTA */}
-      <div className="mb-10 border border-accent-cyan/20 bg-accent-cyan/5 p-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="material-icons text-accent-cyan text-xl">rocket_launch</span>
-              <p className="text-sm font-bold text-white">Go beyond screenshots — test actual user flows</p>
-            </div>
-            <p className="text-xs text-gray-500">
-              Pro runs AI-driven tests on signups, checkouts, form submissions, and more.
-            </p>
-            <div className="flex flex-wrap gap-2 mt-2">
-              <span className="px-2 py-0.5 text-[10px] font-bold bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20">Login flows</span>
-              <span className="px-2 py-0.5 text-[10px] font-bold bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20">Form validation</span>
-              <span className="px-2 py-0.5 text-[10px] font-bold bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20">API errors</span>
-              <span className="px-2 py-0.5 text-[10px] font-bold bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20">Daily monitoring</span>
-            </div>
-          </div>
+        <p className="text-sm text-gray-400 leading-relaxed mb-5">
+          For full-powered testing that runs routinely to catch &amp; fix bugs as you push changes, self-host it yourself or upgrade to pro.
+        </p>
+
+        <div className="flex items-center gap-3">
+          <a
+            href="https://github.com/anthropics/autobot"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="border border-border-dark text-gray-400 px-5 py-2.5 text-sm font-bold hover:border-accent-cyan/40 hover:text-white transition-colors"
+          >
+            Self-host
+          </a>
           <button
             onClick={onUpgrade}
-            className="bg-accent-cyan text-black px-6 py-2.5 text-sm font-bold hover:bg-accent-cyan/80 transition-colors whitespace-nowrap"
+            className="bg-accent-cyan text-black px-5 py-2.5 text-sm font-bold hover:bg-accent-cyan/80 transition-colors"
           >
             Upgrade to Pro
           </button>

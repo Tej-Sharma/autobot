@@ -47,6 +47,7 @@ export interface RunRequest {
   maxRoutes?: number;
   testMode?: TestMode;
   credentials?: Record<string, string>;
+  maxTurns?: number;
 }
 
 export type TestMode = 'agentic' | 'scriptgen' | 'screenshots-only';

@@ -317,6 +317,7 @@ export async function runAgenticTest(input: {
   credentials?: Record<string, string>;
   screenshotDir: string;
   jobId: string;
+  maxTurns?: number;
 }): Promise<AiTestReport> {
   const { baseUrl, credentials, screenshotDir } = input;
   const startTime = Date.now();
@@ -383,7 +384,7 @@ export async function runAgenticTest(input: {
       },
     ];
 
-    const MAX_TURNS = 25;
+    const MAX_TURNS = input.maxTurns ?? 25;
     const KEEP_RECENT_TURNS = 2; // Keep last N turn-pairs (assistant+user) with images intact
     let done = false;
 

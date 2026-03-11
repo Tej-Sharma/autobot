@@ -120,7 +120,8 @@ app.post('/api/qa/try', jsonBody, async (req, res) => {
     mode: 'smoke',
     viewports: [{ name: 'desktop', width: 1280, height: 720 }],
     includeJudge: true,
-    testMode: 'screenshots-only',
+    testMode: 'agentic',
+    maxTurns: 15,
     source: 'web-trial',
     sourceMetadata: { ip, userAgent: req.headers['user-agent'] },
   };

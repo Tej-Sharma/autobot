@@ -85,6 +85,10 @@ export function parseRunPayload(raw: Record<string, unknown>): TriggerParseResul
       request.credentials = raw.credentials as Record<string, string>;
     }
 
+    if (typeof raw.maxTurns === 'number' && Number.isFinite(raw.maxTurns) && raw.maxTurns > 0) {
+      request.maxTurns = raw.maxTurns;
+    }
+
     request.sourceMetadata = {
       source: request.source,
       requestId: stableId(),

@@ -292,6 +292,7 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
             credentials: payload.credentials,
             screenshotDir: agenticScreenshotDir,
             jobId: runId,
+            maxTurns: payload.maxTurns,
           });
 
           // Create phase records from agentic screenshots for the report
@@ -314,16 +315,18 @@ export async function executeRun(payload: QueuedRun): Promise<ExecutionResult> {
         }
       }
 
-      // Always run visual checks (screenshots + judge) as baseline
-      const visualRecords = await runVisualChecks({
-        jobId: runId,
-        runDir,
-        baseUrl,
-        routeConfigs: routeSpecs,
-        mode: payload.mode,
-        viewports,
-      });
-      routeRecords = [...routeRecords, ...visualRecords];
+      // Skip visual checks if agentic test already ran (agentic screenshots are sufficient)
+      if (!aiTestReport) {
+        const visualRecords = await runVisualChecks({
+          jobId: runId,
+          runDir,
+          baseUrl,
+          routeConfigs: routeSpecs,
+          mode: payload.mode,
+          viewports,
+        });
+        routeRecords = [...routeRecords, ...visualRecords];
+      }
     }
 
     await setJobStatus(runId, {
