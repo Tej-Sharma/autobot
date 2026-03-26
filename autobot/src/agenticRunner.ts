@@ -4,13 +4,14 @@
  * Uses Playwright for browser automation + Anthropic Claude API (vision + tools)
  * to autonomously explore and test a web application.
  *
- * Strategy: exhaust edge cases on current page before advancing,
- * backtrack to cover features, stop after 3 bugs found.
+ * Strategy: at each page/state, exhaust all testable features before moving on.
+ * When multiple state-changing paths exist, mark a backtrack point, pick one,
+ * and return later to try the others. Tracks every step with checklists and logs.
  */
 
 import Anthropic from "@anthropic-ai/sdk";
 import { chromium, Page } from "playwright";
-import { AiTestReport, AiTestFinding } from "./types";
+import { AiTestReport, AiTestFinding, TrackedStep } from "./types";
 import { CONFIG } from "./config";
 import fs from "node:fs";
 import path from "node:path";
@@ -118,9 +119,68 @@ const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: "log_step",
+    description:
+      "Log what you tested at the current page/state. Call this AFTER you have exhausted all testable features at the current state before moving on. This tracks your progress through the app.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        stepName: {
+          type: "string",
+          description:
+            "Short label for this state, e.g. 'Homepage', 'Registration form', 'Dashboard settings'",
+        },
+        actions: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "List of what you did here, e.g. ['Submitted empty form', 'Tested XSS in email field', 'Clicked all nav links']",
+        },
+        checklist: {
+          type: "array",
+          items: {
+            type: "object" as const,
+            properties: {
+              item: { type: "string", description: "What was checked" },
+              passed: { type: "boolean", description: "true if the check passed, false if it failed" },
+              notes: { type: "string", description: "Optional observation" },
+            },
+            required: ["item", "passed"],
+          },
+          description: "Checklist of items verified at this step",
+        },
+        observations: {
+          type: "string",
+          description: "General observations about this page/state",
+        },
+        hasMultiplePaths: {
+          type: "boolean",
+          description:
+            "Set to true if there are multiple state-changing actions possible here (e.g. multiple nav links, different form submissions). This saves a backtrack point so you can return later to try the other paths.",
+        },
+      },
+      required: ["stepName", "actions", "checklist", "observations", "hasMultiplePaths"],
+    },
+  },
+  {
+    name: "backtrack",
+    description:
+      "Navigate back to the most recent backtrack point to try an unexplored path. Call this when you've finished exploring a branch and want to return to try alternatives.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        reason: {
+          type: "string",
+          description: "Why you are backtracking, e.g. 'Finished testing signup flow, returning to try login flow'",
+        },
+      },
+      required: ["reason"],
+    },
+  },
+  {
     name: "finish_testing",
     description:
-      "Call when testing is complete — either found 5+ bugs or exhausted all testable features.",
+      "Call when testing is complete — either found 5+ bugs or exhausted all testable features and backtrack points.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -250,6 +310,16 @@ async function takeScreenshot(
 }
 
 /* ------------------------------------------------------------------ */
+/*  Backtrack stack                                                    */
+/* ------------------------------------------------------------------ */
+
+interface BacktrackEntry {
+  stepId: string;
+  stepName: string;
+  url: string;
+}
+
+/* ------------------------------------------------------------------ */
 /*  System prompt                                                      */
 /* ------------------------------------------------------------------ */
 
@@ -257,49 +327,60 @@ function buildSystemPrompt(
   baseUrl: string,
   credentials?: Record<string, string>,
 ): string {
-  let prompt = `You are an elite QA engineer and security auditor. Your job is to find REAL bugs that cost companies money. You are thorough, skeptical, and assume every app has problems until proven otherwise.
+  let prompt = `You are a destructive QA tester. Your job is to BREAK ${baseUrl} and find every flaw. You are harsh and critical — nothing is "good enough." Every app has bugs.
 
-## Your Goal
-Find bugs, UX problems, and quality issues at ${baseUrl}. Every web app has flaws — your job is to uncover them.
+## CRITICAL RULES — YOU MUST FOLLOW THESE
+1. After testing a page, you MUST call \`log_step\` to record what you did. Do this every 3-4 actions, not at the end.
+2. When you find ANY issue, you MUST call \`report_bug\` IMMEDIATELY. Do not wait.
+3. When a page has multiple navigation paths, call \`log_step\` with hasMultiplePaths=true BEFORE clicking away.
+4. After finishing a branch, you MUST call \`backtrack\` to return and try other paths. DO NOT skip backtracking.
+5. After 5+ bugs OR all paths tested AND all backtrack points exhausted, call \`finish_testing\`.
 
-## Testing Strategy
-1. **Start with the obvious**: Scroll through the full page first. Check for visual issues, broken images, layout problems, missing content.
-2. **Test every form aggressively**: Submit forms empty. Submit with invalid data (SQL injection strings like "'; DROP TABLE--", XSS like "<script>alert(1)</script>", extremely long strings of 500+ chars, special characters, unicode). Check if error messages are helpful or generic.
-3. **Test navigation thoroughly**: Click every link. Check for 404s, dead ends, and orphan pages. Try adding random paths to the URL.
-4. **Test edge cases on every interactive element**: Toggle things on/off rapidly. Double-click buttons. Try to break things.
-5. **Check responsiveness indicators**: Look at text overflow, truncation, overlapping elements, images that don't fit.
-6. **Verify error handling**: What happens when you do unexpected things? Does the app fail gracefully?
-7. **Stop after 5 bugs found** by calling finish_testing.
+## Testing Each Page — Be Destructive
+At each page, TRY TO BREAK things:
+- Scroll the full page. Look for: cut-off text, overlapping elements, missing images, inconsistent spacing, poor alignment
+- Test forms destructively: submit empty, paste garbage, use "'; DROP TABLE--", "<script>alert(1)</script>", 500+ character strings
+- Click every button and link. Does it respond? Is there feedback? Loading state?
+- If you can create/edit something (node, canvas, item): create one, then try to edit its title with special characters, try to delete it, try empty names, try very long names
+- Try to use features that should fail: empty searches, actions without required data
+- Check every modal/dropdown: does it close properly? Can you open two at once?
 
-## How This Works
-1. You see a screenshot and a numbered list of interactive elements.
-2. Use tools: click(index), fill(index, value), navigate(url), scroll(direction), press_key(key).
-3. After each action, you get an updated screenshot and elements.
-4. Call report_bug whenever you find ANYTHING wrong. Be liberal with bug reports — even minor UX issues count.
-5. When done (5+ bugs OR all features tested), call finish_testing.
+## You MUST Find Bugs — Look For These Specifically
+- Missing loading states or spinners when actions take time
+- Buttons that don't give feedback when clicked (no hover state, no loading)
+- Forms/inputs without placeholder text or labels
+- Empty states that say nothing useful (blank pages with no guidance)
+- Inconsistent spacing, font sizes, or colors between similar elements
+- Features that silently fail (you click but nothing happens, no error shown)
+- Missing keyboard navigation or focus indicators
+- Text that overflows its container or gets truncated without ellipsis
+- Images without alt text
+- Modals that can't be closed with Escape key
+- Error messages that are too technical or unhelpful
 
-## What Counts as a Bug (report ALL of these)
-- **Visual**: Overlapping text, broken layouts, cut-off content, poor spacing, misaligned elements, inconsistent fonts/colors, broken images, text overflow
-- **Functional**: Broken links (404s), non-functional buttons, forms that don't validate, missing loading states, silent failures
-- **UX**: Missing error messages for invalid input, confusing navigation, unclear CTAs, no feedback after actions, poor empty states
-- **Content**: Typos, placeholder text left in, "Lorem ipsum", generic error messages, missing page titles
-- **Performance indicators**: Elements that take too long to appear, blank sections that should have content, flashing/jumping layouts
-- **Accessibility**: Missing alt text on images, poor color contrast, inputs without labels, non-keyboard-navigable elements
-- **Security indicators**: Sensitive data visible in URLs, autocomplete on password fields, missing HTTPS redirects
+## Backtracking — MANDATORY
+When you set a backtrack point, you MUST eventually call \`backtrack\` to return. After testing one path from a branch point, call \`backtrack\` to go back and test the other paths. If you finish without backtracking to your saved points, you have failed your job.
 
-## Important
-- You MUST report at least 2 bugs. Every app has issues — look harder if you haven't found any.
-- Minor UX issues ARE bugs. A confusing label, an unclear button, poor spacing — report it.
-- When scrolling reveals content below the fold, examine it carefully for issues.
-- Don't just click around randomly — have a systematic plan and exhaust each area.`;
+## Your Workflow Per Page
+1. Observe screenshot + elements (2-3 seconds of analysis)
+2. Test 3-4 things on this page
+3. Call \`report_bug\` for each issue — be harsh, report even minor problems
+4. Call \`log_step\` to record progress
+5. Continue testing OR navigate to next page OR \`backtrack\`
+
+You MUST report at least 3 bugs. If you haven't found any after 10 turns, you are not looking hard enough. Report spacing issues, missing hover states, unclear labels — ANYTHING imperfect.`;
 
   if (credentials && Object.keys(credentials).length > 0) {
-    prompt += `\n\n## Test Credentials\n`;
+    prompt += `\n\n## Test Credentials — LOG IN QUICKLY\n`;
     for (const [key, value] of Object.entries(credentials)) {
       prompt += `${key}: ${value}\n`;
     }
-    prompt +=
-      "\nUse these to test authenticated features. But FIRST test edge cases on the auth page before logging in.";
+    prompt += `\nLog in with these credentials within the first 3 turns. Do NOT spend many turns testing the login page — the real value is testing the app AFTER login. Once logged in:
+- Actually USE every feature you find. Don't just open pages — interact with them.
+- Create things (canvases, nodes, items), then edit them, rename them, try to break them.
+- Type into text areas, submit forms, use search, test filters.
+- Try to trigger errors: empty inputs, special characters, extremely long text.
+- Test the full user journey: create → edit → delete → verify.`;
   } else {
     prompt +=
       "\n\nNo credentials provided. Test only public/unauthenticated features.";
@@ -336,6 +417,11 @@ export async function runAgenticTest(input: {
 
   const findings: AiTestFinding[] = [];
   const screenshotKeys: string[] = [];
+  const trackedSteps: TrackedStep[] = [];
+  const backtrackStack: BacktrackEntry[] = [];
+  const backtrackLog: { from: string; to: string; reason: string }[] = [];
+  let stepCounter = 0;
+  let currentStepId = ""; // tracks the most recently logged step
   let screenshotIdx = 0;
   let inputTokens = 0;
   let outputTokens = 0;
@@ -370,7 +456,7 @@ export async function runAgenticTest(input: {
         content: [
           {
             type: "text",
-            text: `Testing ${baseUrl}\n\nCurrent URL: ${page.url()}\n\nInteractive elements:\n${formatElements(elementCache)}\n\nBegin testing. Start by exploring the current page.`,
+            text: `Testing ${baseUrl}\n\nCurrent URL: ${page.url()}\n\nInteractive elements:\n${formatElements(elementCache)}\n\nStart testing this page. Your workflow:\n1. Scroll down to see the full page\n2. Test interactive elements (click buttons, test forms)\n3. Call report_bug for any issues you find\n4. Call log_step to record what you tested\n5. Then navigate to the next page\n\nRemember: you MUST call log_step and report_bug. Begin now.`,
           },
           {
             type: "image",
@@ -385,14 +471,13 @@ export async function runAgenticTest(input: {
     ];
 
     const MAX_TURNS = input.maxTurns ?? 25;
-    const KEEP_RECENT_TURNS = 2; // Keep last N turn-pairs (assistant+user) with images intact
+    const KEEP_RECENT_TURNS = 2;
     let done = false;
+    let lastStructuredTool = -1; // track when log_step/report_bug was last called
+    const NUDGE_INTERVAL = 3; // remind agent every N turns if no structured tool calls
 
     for (let turn = 0; turn < MAX_TURNS && !done; turn++) {
       // Sliding window: strip base64 images from older messages to prevent OOM.
-      // Keep the first user message (with initial screenshot for context) and
-      // the most recent KEEP_RECENT_TURNS turn-pairs with full images.
-      // Older messages get their image blocks replaced with a text placeholder.
       if (messages.length > KEEP_RECENT_TURNS * 2 + 1) {
         const cutoff = messages.length - KEEP_RECENT_TURNS * 2;
         for (let i = 0; i < cutoff; i++) {
@@ -431,7 +516,7 @@ export async function runAgenticTest(input: {
       try {
         response = await client.messages.create({
           model: CONFIG.agentModel,
-          max_tokens: 1024,
+          max_tokens: 2048,
           system: systemPrompt,
           tools: TOOLS,
           messages,
@@ -570,18 +655,124 @@ export async function runAgenticTest(input: {
                   (inp.severity as AiTestFinding["severity"]) || "medium",
                 category: String(inp.category || "general"),
                 message: String(inp.message || ""),
+                stepId: currentStepId || undefined,
               };
               if (screenshotKeys.length > 0) {
                 finding.screenshot =
                   screenshotKeys[screenshotKeys.length - 1];
               }
               findings.push(finding);
+
+              // Also attach bug to the most recent tracked step
+              if (trackedSteps.length > 0) {
+                trackedSteps[trackedSteps.length - 1].bugsFound.push(finding);
+              }
+
               resultText = `Bug #${findings.length} reported: [${finding.severity}] ${finding.message}`;
+              lastStructuredTool = turn;
               if (findings.length >= 5) {
                 resultText +=
                   "\n\nYou have found 5 bugs. Call finish_testing now with a summary.";
               }
               takeNewShot = false;
+              break;
+            }
+
+            case "log_step": {
+              stepCounter++;
+              const stepId = `step-${String(stepCounter).padStart(3, "0")}`;
+              currentStepId = stepId;
+              const stepName = String(inp.stepName || "Unnamed step");
+              const actions = Array.isArray(inp.actions)
+                ? (inp.actions as string[])
+                : [];
+              const checklist = Array.isArray(inp.checklist)
+                ? (inp.checklist as { item: string; passed: boolean; notes?: string }[])
+                : [];
+              const observations = String(inp.observations || "");
+              const hasMultiplePaths = Boolean(inp.hasMultiplePaths);
+
+              const step: TrackedStep = {
+                id: stepId,
+                name: stepName,
+                url: page.url(),
+                actions,
+                checklist,
+                observations,
+                bugsFound: [],
+                screenshotKey: screenshotKeys.length > 0
+                  ? screenshotKeys[screenshotKeys.length - 1]
+                  : undefined,
+                isBacktrackPoint: hasMultiplePaths,
+                backtrackExhausted: false,
+              };
+              trackedSteps.push(step);
+              lastStructuredTool = turn;
+
+              if (hasMultiplePaths) {
+                backtrackStack.push({
+                  stepId,
+                  stepName,
+                  url: page.url(),
+                });
+                console.log(`[agentic] backtrack point saved: ${stepId} "${stepName}" at ${page.url()}`);
+              }
+
+              console.log(`[agentic] step logged: ${stepId} "${stepName}" (${actions.length} actions, ${checklist.length} checks, backtrack: ${hasMultiplePaths})`);
+
+              resultText = `Step ${stepId} "${stepName}" logged.`;
+              resultText += `\n${checklist.filter(c => c.passed).length}/${checklist.length} checks passed.`;
+              if (hasMultiplePaths) {
+                resultText += `\nBacktrack point saved. When you finish exploring this branch, call backtrack to return here and try other paths.`;
+              }
+              if (backtrackStack.length > 0) {
+                resultText += `\n\nPending backtrack points: ${backtrackStack.map(b => `"${b.stepName}"`).join(", ")}`;
+              }
+              takeNewShot = false;
+              break;
+            }
+
+            case "backtrack": {
+              const reason = String(inp.reason || "");
+
+              if (backtrackStack.length === 0) {
+                resultText = "No backtrack points available. Continue testing or call finish_testing.";
+                takeNewShot = false;
+                break;
+              }
+
+              const entry = backtrackStack.pop()!;
+
+              // Mark the step as exhausted
+              const btStep = trackedSteps.find(s => s.id === entry.stepId);
+              if (btStep) btStep.backtrackExhausted = true;
+
+              const fromUrl = page.url();
+              backtrackLog.push({
+                from: fromUrl,
+                to: entry.url,
+                reason,
+              });
+
+              console.log(`[agentic] backtracking from ${fromUrl} to ${entry.url} (step: ${entry.stepId} "${entry.stepName}")`);
+
+              // Navigate back
+              await page.goto(entry.url, {
+                waitUntil: "domcontentloaded",
+                timeout: 15000,
+              });
+              await page
+                .waitForLoadState("networkidle", { timeout: 8000 })
+                .catch(() => {});
+              await page.waitForTimeout(500);
+
+              resultText = `Backtracked to "${entry.stepName}" (${entry.url}). You're back at this branching point. Try the next unexplored path.`;
+              if (backtrackStack.length > 0) {
+                resultText += `\n\nRemaining backtrack points: ${backtrackStack.map(b => `"${b.stepName}"`).join(", ")}`;
+              } else {
+                resultText += `\n\nNo more backtrack points remaining.`;
+              }
+              // takeNewShot = true (default) — will take a screenshot of the backtracked page
               break;
             }
 
@@ -646,6 +837,31 @@ export async function runAgenticTest(input: {
       }
 
       if (toolResults.length > 0 && !done) {
+        // Inject periodic nudge if agent hasn't called log_step/report_bug recently
+        const turnsSinceStructured = turn - lastStructuredTool;
+        if (turnsSinceStructured >= NUDGE_INTERVAL && turnsSinceStructured % NUDGE_INTERVAL === 0) {
+          const turnsLeft = MAX_TURNS - turn - 1;
+          let nudge = `\n\n⚠️ REMINDER: You have ${turnsLeft} turns left. Do NOT waste turns — you must call log_step and report_bug NOW.`;
+          if (trackedSteps.length === 0) {
+            nudge += ` You have NOT called log_step yet. Call log_step on your NEXT action to record what you've tested.`;
+          }
+          if (findings.length === 0) {
+            nudge += ` You have NOT reported any bugs. Every app has issues — report UX problems, missing labels, poor contrast, unclear error messages, anything imperfect. Call report_bug NOW.`;
+          }
+          if (turnsLeft <= 5) {
+            nudge += ` You are almost out of turns! Call report_bug for issues and log_step immediately, then finish_testing.`;
+          }
+          // Append nudge to the last tool result's text
+          const lastResult = toolResults[toolResults.length - 1];
+          if (typeof lastResult.content === "string") {
+            lastResult.content += nudge;
+          } else if (Array.isArray(lastResult.content)) {
+            const textBlock = (lastResult.content as Anthropic.ContentBlockParam[]).find(
+              (b) => b.type === "text",
+            ) as Anthropic.TextBlockParam | undefined;
+            if (textBlock) textBlock.text += nudge;
+          }
+        }
         messages.push({ role: "user", content: toolResults });
       }
 
@@ -664,16 +880,23 @@ export async function runAgenticTest(input: {
 
   const durationMs = Date.now() - startTime;
   const costUsd = estimateCost(inputTokens, outputTokens);
+
+  // Derive flow counts from backtrack points
+  const flowSegments = trackedSteps.filter(s => s.isBacktrackPoint).length + 1;
+  const flowsWithBugs = new Set(findings.map(f => f.stepId).filter(Boolean)).size;
+
   const reportMd = buildReportMd(
     findings,
     baseUrl,
     durationMs,
     costUsd,
     screenshotKeys,
+    trackedSteps,
+    backtrackLog,
   );
 
   console.log(
-    `[agentic] done: ${findings.length} findings, ${screenshotKeys.length} screenshots, $${costUsd.toFixed(4)}, ${(durationMs / 1000).toFixed(1)}s`,
+    `[agentic] done: ${findings.length} findings, ${trackedSteps.length} steps, ${backtrackLog.length} backtracks, ${screenshotKeys.length} screenshots, $${costUsd.toFixed(4)}, ${(durationMs / 1000).toFixed(1)}s`,
   );
 
   return {
@@ -685,16 +908,18 @@ export async function runAgenticTest(input: {
         : findings.length > 0
           ? "partial"
           : "pass",
-    flowsTotal: 1,
-    flowsPassed: findings.length === 0 ? 1 : 0,
-    flowsFailed: findings.length > 0 ? 1 : 0,
-    flowsSkipped: 0,
+    flowsTotal: flowSegments,
+    flowsPassed: flowSegments - flowsWithBugs,
+    flowsFailed: flowsWithBugs,
+    flowsSkipped: backtrackStack.length, // remaining unexplored backtrack points
     codeFaults: 0,
     findings,
     costUsd,
     durationMs,
     reportMd,
     screenshotKeys,
+    steps: trackedSteps,
+    backtrackLog,
   };
 }
 
@@ -721,13 +946,74 @@ function buildReportMd(
   durationMs: number,
   costUsd: number,
   screenshots: string[],
+  steps: TrackedStep[],
+  btLog: { from: string; to: string; reason: string }[],
 ): string {
   let md = `# AI Agentic Test Report\n\n`;
   md += `**Target:** ${baseUrl}\n`;
   md += `**Duration:** ${(durationMs / 1000).toFixed(1)}s\n`;
   md += `**Cost:** $${costUsd.toFixed(4)}\n`;
-  md += `**Screenshots taken:** ${screenshots.length}\n\n`;
+  md += `**Screenshots taken:** ${screenshots.length}\n`;
+  md += `**Steps completed:** ${steps.length}\n`;
+  md += `**Backtracks:** ${btLog.length}\n\n`;
 
+  // --- Test Execution Log ---
+  if (steps.length > 0) {
+    md += `## Test Execution Log\n\n`;
+    for (const step of steps) {
+      const btLabel = step.isBacktrackPoint
+        ? ` (backtrack point${step.backtrackExhausted ? " — exhausted" : " — pending"})`
+        : "";
+      md += `### ${step.id}: ${step.name}${btLabel}\n`;
+      md += `**URL:** ${step.url}\n\n`;
+
+      if (step.actions.length > 0) {
+        md += `**Actions:**\n`;
+        for (const action of step.actions) {
+          md += `- ${action}\n`;
+        }
+        md += `\n`;
+      }
+
+      if (step.checklist.length > 0) {
+        const passed = step.checklist.filter(c => c.passed).length;
+        md += `**Checklist (${passed}/${step.checklist.length} passed):**\n`;
+        for (const check of step.checklist) {
+          const icon = check.passed ? "[x]" : "[ ]";
+          md += `- ${icon} ${check.item}`;
+          if (check.notes) md += ` — ${check.notes}`;
+          md += `\n`;
+        }
+        md += `\n`;
+      }
+
+      if (step.observations) {
+        md += `**Observations:** ${step.observations}\n\n`;
+      }
+
+      if (step.bugsFound.length > 0) {
+        md += `**Bugs found:** ${step.bugsFound.length}\n`;
+        for (const bug of step.bugsFound) {
+          md += `- [${bug.severity}] ${bug.category}: ${bug.message}\n`;
+        }
+        md += `\n`;
+      }
+
+      md += `---\n\n`;
+    }
+  }
+
+  // --- Backtrack Log ---
+  if (btLog.length > 0) {
+    md += `## Backtrack Log\n\n`;
+    for (let i = 0; i < btLog.length; i++) {
+      md += `${i + 1}. ${btLog[i].reason}\n`;
+      md += `   From: ${btLog[i].from} → To: ${btLog[i].to}\n`;
+    }
+    md += `\n`;
+  }
+
+  // --- Findings Summary ---
   if (findings.length === 0) {
     md += `## Result: PASS\n\nNo bugs found during testing.\n`;
   } else {
@@ -736,10 +1022,10 @@ function buildReportMd(
     );
     md += `## Result: ${hasCritical ? "FAIL" : "PARTIAL"}\n\n`;
     md += `Found ${findings.length} issue(s):\n\n`;
-    md += `| # | Severity | Category | Description | Screenshot |\n`;
-    md += `|---|----------|----------|-------------|------------|\n`;
+    md += `| # | Severity | Category | Description | Step | Screenshot |\n`;
+    md += `|---|----------|----------|-------------|------|------------|\n`;
     findings.forEach((f, i) => {
-      md += `| ${i + 1} | ${f.severity} | ${f.category} | ${f.message} | ${f.screenshot || "N/A"} |\n`;
+      md += `| ${i + 1} | ${f.severity} | ${f.category} | ${f.message} | ${f.stepId || "N/A"} | ${f.screenshot || "N/A"} |\n`;
     });
   }
 

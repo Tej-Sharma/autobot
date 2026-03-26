@@ -63,7 +63,7 @@ export function Hero({ onSubmitUrl, isLoading, error }: HeroProps) {
               setUrl(e.target.value);
               setValidationError(null);
             }}
-            placeholder="https://your-app.com"
+            placeholder="Enter Your Web App URL"
             className="flex-1 px-2 py-3.5 bg-transparent text-white placeholder-gray-600 outline-none text-sm"
             disabled={isLoading}
           />

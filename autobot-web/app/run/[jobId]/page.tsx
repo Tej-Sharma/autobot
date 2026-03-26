@@ -44,6 +44,20 @@ interface AiTestFinding {
   category: string;
   message: string;
   screenshot?: string;
+  stepId?: string;
+}
+
+interface TrackedStep {
+  id: string;
+  name: string;
+  url: string;
+  actions: string[];
+  checklist: { item: string; passed: boolean; notes?: string }[];
+  observations: string;
+  bugsFound: AiTestFinding[];
+  screenshotKey?: string;
+  isBacktrackPoint: boolean;
+  backtrackExhausted: boolean;
 }
 
 interface AiTestReport {
@@ -51,6 +65,8 @@ interface AiTestReport {
   costUsd: number;
   durationMs: number;
   screenshotKeys: string[];
+  steps?: TrackedStep[];
+  backtrackLog?: { from: string; to: string; reason: string }[];
 }
 
 interface Report {
@@ -257,9 +273,7 @@ export default function RunPage() {
               toggleFinding={toggleFinding}
               email={email}
               setEmail={setEmail}
-              emailStatus={emailStatus}
               emailError={emailError}
-              onEmailCapture={handleEmailCapture}
               onUpgrade={handleUpgrade}
             />
           )}
@@ -344,9 +358,7 @@ function ResultsView({
   toggleFinding,
   email,
   setEmail,
-  emailStatus,
   emailError,
-  onEmailCapture,
   onUpgrade,
 }: {
   jobId: string;
@@ -355,12 +367,11 @@ function ResultsView({
   toggleFinding: (idx: number) => void;
   email: string;
   setEmail: (v: string) => void;
-  emailStatus: "idle" | "sending" | "sent" | "error";
   emailError: string | null;
-  onEmailCapture: (e: React.FormEvent) => void;
   onUpgrade: () => void;
 }) {
   const { totals, phases } = report;
+  const [showCloudEmail, setShowCloudEmail] = useState(false);
 
   function screenshotSrc(phase: Phase): string | null {
     if (phase.screenshotBase64) {
@@ -388,11 +399,9 @@ function ResultsView({
   const rawScore = totals.score;
   const bugCount = allFindings.length;
   const displayScore = bugCount >= 5 ? Math.min(rawScore, 42) : bugCount >= 3 ? Math.min(rawScore, 55) : Math.min(rawScore, 68);
-  const bugMessage = bugCount >= 5
-    ? `${bugCount} bugs found causing revenue loss`
-    : bugCount >= 3
-    ? `${bugCount} bugs found causing revenue loss`
-    : "2-3 bugs found causing revenue loss";
+  const bugMessage = bugCount >= 3
+    ? `${bugCount} bugs found`
+    : "2-3 bugs found";
 
   return (
     <div>
@@ -414,6 +423,15 @@ function ResultsView({
           <p className="text-xs text-gray-500 mt-0.5">These issues may be impacting user experience and conversions</p>
         </div>
       </div>
+
+      {/* Execution Steps */}
+      {report.aiTestReport?.steps && report.aiTestReport.steps.length > 0 && (
+        <StepsView
+          steps={report.aiTestReport.steps}
+          backtrackLog={report.aiTestReport.backtrackLog ?? []}
+          jobId={jobId}
+        />
+      )}
 
       {/* Summary bar */}
       <div className="flex flex-wrap justify-center gap-3 mb-8">
@@ -439,39 +457,13 @@ function ResultsView({
         )}
       </div>
 
-      {/* Email + CTA section */}
-      <div className="mb-10 border border-border-dark bg-surface-dark/80 p-6">
-        {emailStatus === "sent" ? (
-          <div className="text-center mb-4">
-            <span className="material-icons text-accent-green text-2xl mb-1">check_circle</span>
-            <p className="text-sm font-bold text-white">Report sent to your inbox.</p>
-          </div>
-        ) : (
-          <form onSubmit={onEmailCapture} className="flex gap-2 mb-4">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@company.com"
-              className="flex-1 px-4 py-2.5 border border-border-dark bg-transparent text-sm text-white outline-none focus:border-accent-cyan/60 placeholder:text-gray-600"
-              disabled={emailStatus === "sending"}
-            />
-            <button
-              type="submit"
-              disabled={emailStatus === "sending"}
-              className="border border-border-dark text-gray-400 px-4 py-2.5 text-sm font-bold hover:border-accent-cyan/40 hover:text-white transition-colors disabled:opacity-60 whitespace-nowrap"
-            >
-              {emailStatus === "sending" ? "Sending..." : "Email report"}
-            </button>
-          </form>
-        )}
-        {emailError && <p className="mb-3 text-xs text-red-400">{emailError}</p>}
-
+      {/* CTA section */}
+      <div className="mb-10 border border-border-dark bg-surface-dark/80 p-6 text-center">
         <p className="text-sm text-gray-400 leading-relaxed mb-5">
-          For full-powered testing that runs routinely to catch &amp; fix bugs as you push changes, self-host it yourself or upgrade to pro.
+          For full-powered testing that runs routinely to catch &amp; fix bugs as you push changes, self-host it yourself for free or upgrade to pro.
         </p>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-center gap-3">
           <a
             href="https://github.com/anthropics/autobot"
             target="_blank"
@@ -481,12 +473,36 @@ function ResultsView({
             Self-host
           </a>
           <button
-            onClick={onUpgrade}
+            onClick={() => setShowCloudEmail(true)}
             className="bg-accent-cyan text-black px-5 py-2.5 text-sm font-bold hover:bg-accent-cyan/80 transition-colors"
           >
-            Upgrade to Pro
+            Get AutoBot Cloud
           </button>
         </div>
+
+        {showCloudEmail && (
+          <form
+            onSubmit={(e) => { e.preventDefault(); onUpgrade(); }}
+            className="flex gap-2 mt-4 max-w-md mx-auto"
+            style={{ animation: "fadeSlideIn 0.2s ease-out" }}
+          >
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@company.com"
+              autoFocus
+              className="flex-1 px-4 py-2.5 border border-border-dark bg-transparent text-sm text-white outline-none focus:border-accent-cyan/60 placeholder:text-gray-600"
+            />
+            <button
+              type="submit"
+              className="bg-accent-cyan text-black px-4 py-2.5 text-sm font-bold hover:bg-accent-cyan/80 transition-colors"
+            >
+              <span className="material-icons text-sm">arrow_forward</span>
+            </button>
+          </form>
+        )}
+        {emailError && <p className="mt-2 text-xs text-red-400">{emailError}</p>}
       </div>
 
       {/* Screenshot grid */}
@@ -570,6 +586,252 @@ function ResultsView({
           Test Another App
         </Link>
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Steps View — shows the execution flow the agent walked through     */
+/* ------------------------------------------------------------------ */
+
+function StepsView({
+  steps,
+  backtrackLog,
+  jobId,
+}: {
+  steps: TrackedStep[];
+  backtrackLog: { from: string; to: string; reason: string }[];
+  jobId: string;
+}) {
+  const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set());
+
+  const toggleStep = (id: string) => {
+    setExpandedSteps((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const totalChecks = steps.reduce((sum, s) => sum + s.checklist.length, 0);
+  const passedChecks = steps.reduce(
+    (sum, s) => sum + s.checklist.filter((c) => c.passed).length,
+    0,
+  );
+  const totalBugs = steps.reduce((sum, s) => sum + s.bugsFound.length, 0);
+
+  return (
+    <div className="mb-10">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-bold text-white">Test Execution Flow</h3>
+        <div className="flex items-center gap-3 text-xs text-gray-500">
+          <span>{steps.length} steps</span>
+          <span>{passedChecks}/{totalChecks} checks passed</span>
+          {totalBugs > 0 && (
+            <span className="text-red-400">{totalBugs} bugs</span>
+          )}
+        </div>
+      </div>
+
+      <div className="relative">
+        {/* Vertical timeline line */}
+        <div className="absolute left-4 top-0 bottom-0 w-px bg-border-dark" />
+
+        <div className="space-y-2">
+          {steps.map((step, i) => {
+            const isExpanded = expandedSteps.has(step.id);
+            const hasBugs = step.bugsFound.length > 0;
+            const checksPassed = step.checklist.filter((c) => c.passed).length;
+            const checksTotal = step.checklist.length;
+            const allPassed = checksTotal > 0 && checksPassed === checksTotal;
+
+            // Find if there's a backtrack TO this step
+            const backtrackTo = backtrackLog.find((b) => b.to === step.url);
+
+            return (
+              <div key={step.id}>
+                {/* Backtrack indicator */}
+                {backtrackTo && (
+                  <div className="flex items-center gap-2 ml-8 mb-1 py-1">
+                    <span className="material-icons text-accent-amber text-xs">undo</span>
+                    <span className="text-xs text-accent-amber/80 italic">
+                      Backtracked: {backtrackTo.reason}
+                    </span>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => toggleStep(step.id)}
+                  className="w-full text-left group"
+                >
+                  {/* Step header */}
+                  <div className="flex items-start gap-3 relative">
+                    {/* Timeline dot */}
+                    <div className={`relative z-10 flex-shrink-0 w-8 h-8 flex items-center justify-center border ${
+                      hasBugs
+                        ? "border-red-500/40 bg-red-500/10"
+                        : allPassed
+                          ? "border-accent-green/40 bg-accent-green/10"
+                          : "border-border-dark bg-surface-dark"
+                    }`}>
+                      {hasBugs ? (
+                        <span className="material-icons text-red-400 text-sm">bug_report</span>
+                      ) : allPassed ? (
+                        <span className="material-icons text-accent-green text-sm">check</span>
+                      ) : (
+                        <span className="text-xs text-gray-500 font-bold">{i + 1}</span>
+                      )}
+                    </div>
+
+                    {/* Step content */}
+                    <div className={`flex-1 border bg-surface-dark/80 px-4 py-3 transition-colors ${
+                      isExpanded ? "border-accent-cyan/30" : "border-border-dark group-hover:border-accent-cyan/20"
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-white">{step.name}</span>
+                          {step.isBacktrackPoint && (
+                            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-accent-amber/10 text-accent-amber border border-accent-amber/20">
+                              BRANCH
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {checksTotal > 0 && (
+                            <span className={`text-xs font-bold ${allPassed ? "text-accent-green" : hasBugs ? "text-red-400" : "text-gray-500"}`}>
+                              {checksPassed}/{checksTotal}
+                            </span>
+                          )}
+                          <span
+                            className="material-icons text-gray-600 text-sm transition-transform"
+                            style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
+                          >
+                            expand_more
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Actions summary (always visible) */}
+                      <p className="text-xs text-gray-500 mt-1 truncate">
+                        {step.actions.slice(0, 3).join(" · ")}
+                        {step.actions.length > 3 && ` · +${step.actions.length - 3} more`}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+
+                {/* Expanded details */}
+                {isExpanded && (
+                  <div className="ml-11 border border-t-0 border-border-dark bg-surface-dark/50 px-4 py-4 space-y-4" style={{ animation: "fadeSlideIn 0.15s ease-out" }}>
+                    {/* URL */}
+                    <div>
+                      <span className="text-[10px] text-gray-600 uppercase font-bold tracking-wider">URL</span>
+                      <p className="text-xs text-gray-400 mt-0.5 break-all">{step.url}</p>
+                    </div>
+
+                    {/* Actions */}
+                    {step.actions.length > 0 && (
+                      <div>
+                        <span className="text-[10px] text-gray-600 uppercase font-bold tracking-wider">Actions Performed</span>
+                        <ul className="mt-1 space-y-0.5">
+                          {step.actions.map((action, ai) => (
+                            <li key={ai} className="text-xs text-gray-400 flex items-start gap-1.5">
+                              <span className="text-gray-600 mt-0.5">›</span>
+                              {action}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Checklist */}
+                    {step.checklist.length > 0 && (
+                      <div>
+                        <span className="text-[10px] text-gray-600 uppercase font-bold tracking-wider">
+                          Checklist ({checksPassed}/{checksTotal})
+                        </span>
+                        <ul className="mt-1 space-y-0.5">
+                          {step.checklist.map((check, ci) => (
+                            <li key={ci} className="text-xs flex items-start gap-1.5">
+                              {check.passed ? (
+                                <span className="text-accent-green mt-0.5 flex-shrink-0">✓</span>
+                              ) : (
+                                <span className="text-red-400 mt-0.5 flex-shrink-0">✗</span>
+                              )}
+                              <span className={check.passed ? "text-gray-400" : "text-red-300"}>
+                                {check.item}
+                                {check.notes && <span className="text-gray-600"> — {check.notes}</span>}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Observations */}
+                    {step.observations && (
+                      <div>
+                        <span className="text-[10px] text-gray-600 uppercase font-bold tracking-wider">Observations</span>
+                        <p className="text-xs text-gray-400 mt-0.5">{step.observations}</p>
+                      </div>
+                    )}
+
+                    {/* Bugs found at this step */}
+                    {step.bugsFound.length > 0 && (
+                      <div>
+                        <span className="text-[10px] text-gray-600 uppercase font-bold tracking-wider">
+                          Bugs Found ({step.bugsFound.length})
+                        </span>
+                        <div className="mt-1 space-y-1">
+                          {step.bugsFound.map((bug, bi) => (
+                            <div
+                              key={bi}
+                              className="flex items-start gap-2 px-2 py-1.5 bg-red-500/5 border border-red-500/10"
+                            >
+                              <span className={`px-1.5 py-0.5 text-[10px] font-bold flex-shrink-0 ${severityColor(bug.severity)}`}>
+                                {bug.severity}
+                              </span>
+                              <span className="text-xs text-gray-300">{bug.message}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Screenshot link */}
+                    {step.screenshotKey && (
+                      <div>
+                        <a
+                          href={`/artifacts/${jobId}/${step.screenshotKey}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] text-accent-cyan hover:underline"
+                        >
+                          View screenshot →
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Backtrack summary */}
+      {backtrackLog.length > 0 && (
+        <div className="mt-4 px-4 py-3 border border-accent-amber/20 bg-accent-amber/5">
+          <span className="text-xs font-bold text-accent-amber">
+            {backtrackLog.length} backtrack{backtrackLog.length !== 1 ? "s" : ""} performed
+          </span>
+          <p className="text-xs text-gray-500 mt-1">
+            The agent revisited previous pages to test alternative paths
+          </p>
+        </div>
+      )}
     </div>
   );
 }

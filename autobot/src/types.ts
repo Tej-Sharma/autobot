@@ -144,6 +144,8 @@ export interface AiTestReport {
   durationMs: number;
   reportMd: string;
   screenshotKeys: string[];
+  steps?: TrackedStep[];
+  backtrackLog?: { from: string; to: string; reason: string }[];
 }
 
 export interface AiTestFinding {
@@ -152,4 +154,22 @@ export interface AiTestFinding {
   message: string;
   flowId?: string;
   screenshot?: string;
+  stepId?: string;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Flow-tracking types for agentic runner                             */
+/* ------------------------------------------------------------------ */
+
+export interface TrackedStep {
+  id: string;
+  name: string;
+  url: string;
+  actions: string[];
+  checklist: { item: string; passed: boolean; notes?: string }[];
+  observations: string;
+  bugsFound: AiTestFinding[];
+  screenshotKey?: string;
+  isBacktrackPoint: boolean;
+  backtrackExhausted: boolean;
 }

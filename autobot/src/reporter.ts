@@ -198,6 +198,21 @@ export function buildAiTestPrComment(report: RunReport, aiReport: AiTestReport):
     `Cost: $${aiReport.costUsd.toFixed(4)} | Duration: ${(aiReport.durationMs / 1000).toFixed(1)}s`,
   ];
 
+  // Step-level summary if available
+  if (aiReport.steps?.length) {
+    lines.push('', `**Steps tested:** ${aiReport.steps.length}`);
+    for (const step of aiReport.steps.slice(0, 8)) {
+      const checks = step.checklist;
+      const passed = checks.filter(c => c.passed).length;
+      const icon = step.bugsFound.length > 0 ? '🔴' : passed === checks.length ? '✅' : '⚠️';
+      const bt = step.isBacktrackPoint ? ' ↩️' : '';
+      lines.push(`- ${icon} **${step.name}** (${passed}/${checks.length} checks)${bt}`);
+    }
+    if (aiReport.steps.length > 8) {
+      lines.push(`- ... and ${aiReport.steps.length - 8} more steps`);
+    }
+  }
+
   // Top findings (max 5)
   const topFindings = aiReport.findings.slice(0, 5);
   if (topFindings.length > 0) {

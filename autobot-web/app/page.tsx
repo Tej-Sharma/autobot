@@ -20,6 +20,24 @@ export default function LandingPage() {
     setError(null);
     posthog.capture("free_test_submitted", { url });
 
+    // 1-free-run-per-URL gate: check localStorage
+    try {
+      const testedUrls: Record<string, string> = JSON.parse(
+        localStorage.getItem("autobot_tested_urls") || "{}",
+      );
+      const hostname = new URL(url).hostname;
+      if (testedUrls[hostname]) {
+        posthog.capture("free_test_blocked_repeat", { url, hostname });
+        setError(
+          `You've already tested ${hostname}. Upgrade to Pro for unlimited testing.`,
+        );
+        setIsSubmitting(false);
+        return;
+      }
+    } catch {
+      // localStorage not available, continue
+    }
+
     try {
       const res = await fetch("/api/qa/try", {
         method: "POST",
@@ -38,6 +56,18 @@ export default function LandingPage() {
           setError(data.error || "Something went wrong. Please try again.");
         }
         return;
+      }
+
+      // Mark URL as tested
+      try {
+        const testedUrls: Record<string, string> = JSON.parse(
+          localStorage.getItem("autobot_tested_urls") || "{}",
+        );
+        const hostname = new URL(url).hostname;
+        testedUrls[hostname] = data.jobId;
+        localStorage.setItem("autobot_tested_urls", JSON.stringify(testedUrls));
+      } catch {
+        // localStorage not available, continue
       }
 
       posthog.capture("free_test_started", { url, job_id: data.jobId });
