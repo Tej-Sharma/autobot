@@ -29,7 +29,7 @@ export default function LandingPage() {
       if (testedUrls[hostname]) {
         posthog.capture("free_test_blocked_repeat", { url, hostname });
         setError(
-          `You've already tested ${hostname}. Upgrade to Pro for unlimited testing.`,
+          `You've already tested ${hostname}.`,
         );
         setIsSubmitting(false);
         return;

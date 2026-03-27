@@ -87,7 +87,17 @@ export function Hero({ onSubmitUrl, isLoading, error }: HeroProps) {
         </div>
 
         {displayError && (
-          <p className="mt-3 text-sm text-red-400">{displayError}</p>
+          <p className="mt-3 text-sm text-red-400">
+            {displayError}{" "}
+            {displayError.includes("already tested") && (
+              <a
+                href="/dashboard?upgrade=true"
+                className="underline cursor-pointer hover:text-white transition-colors"
+              >
+                Upgrade to Pro for unlimited testing.
+              </a>
+            )}
+          </p>
         )}
       </form>
 
