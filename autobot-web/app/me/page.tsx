@@ -258,221 +258,340 @@ function MePage() {
               <Link href="/" className="text-accent-cyan hover:underline text-sm">Run a test</Link>
             </div>
           ) : profile && (
-            <div>
-              {/* Header */}
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-white">Your QA Dashboard</h2>
-                  <p className="text-sm text-gray-500">{profile.email}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className={`px-3 py-1 text-xs font-bold ${
-                    profile.subscription.active
-                      ? "bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20"
-                      : "bg-gray-500/10 text-gray-500 border border-gray-500/20"
-                  }`}>
-                    {profile.subscription.active ? "Pro Plan" : "Free"}
-                  </span>
-                  {!profile.subscription.active && (
-                    <button
-                      onClick={handleUpgrade}
-                      className="border border-accent-cyan text-accent-cyan px-4 py-1.5 text-xs font-bold hover:bg-accent-cyan/10 transition-colors"
-                    >
-                      Upgrade to Pro
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Quick action */}
-              <div className="mb-8">
-                <Link
-                  href="/"
-                  className="inline-flex items-center gap-2 text-sm text-accent-cyan hover:underline"
-                >
-                  <span className="material-icons text-base">add_circle</span>
-                  Run a new test
-                </Link>
-              </div>
-
-              {/* Run history */}
-              <h3 className="text-lg font-bold text-white mb-4">Run History ({runs.length})</h3>
-              {runs.length === 0 ? (
-                <p className="text-gray-500 text-sm">No runs yet. <Link href="/" className="text-accent-cyan hover:underline">Test your first app</Link></p>
-              ) : (
-                <div className="space-y-2">
-                  {runs.map((run) => (
-                    <Link
-                      key={run.id}
-                      href={`/run/${run.id}`}
-                      className="flex items-center justify-between gap-4 border border-border-dark bg-surface-dark px-4 py-3 hover:border-accent-cyan/20 transition-colors"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className={`px-2 py-0.5 text-xs font-bold ${statusBadge(run.status)}`}>
-                          {run.status}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="text-sm font-bold text-white truncate">
-                            {run.report?.baseUrl || run.id}
-                          </p>
-                          <p className="text-xs text-gray-600">
-                            {new Date(run.createdAt).toLocaleDateString()} {new Date(run.createdAt).toLocaleTimeString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 flex-shrink-0">
-                        {run.report?.totals && (
-                          <span className={`text-lg font-bold ${scoreColor(run.report.totals.score)}`}>
-                            {run.report.totals.score}
-                          </span>
-                        )}
-                        <span className="material-icons text-gray-600 text-sm">chevron_right</span>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-
-              {/* Monitoring section (pro users) */}
-              {profile.subscription.active && (
-                <div className="mt-10">
-                  <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                    <span className="material-icons text-accent-cyan text-xl">monitoring</span>
-                    Monitored URLs ({monitors.length})
-                  </h3>
-
-                  <form onSubmit={addMonitorUrl} className="mb-4 space-y-2">
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <input
-                        type="url"
-                        value={newMonitorUrl}
-                        onChange={(e) => setNewMonitorUrl(e.target.value)}
-                        placeholder="https://your-app.com"
-                        className="flex-1 px-4 py-2.5 border border-border-dark bg-surface-dark text-sm text-white outline-none focus:border-accent-cyan"
-                        disabled={monitorLoading}
-                      />
-                      <select
-                        value={newMonitorInterval}
-                        onChange={(e) => setNewMonitorInterval(Number(e.target.value))}
-                        className="px-3 py-2.5 border border-border-dark bg-surface-dark text-sm text-white outline-none"
-                      >
-                        <option value={6}>Every 6h</option>
-                        <option value={12}>Every 12h</option>
-                        <option value={24}>Every 24h</option>
-                        <option value={168}>Weekly</option>
-                      </select>
-                      <button
-                        type="submit"
-                        disabled={monitorLoading}
-                        className="bg-accent-cyan text-black px-5 py-2.5 text-sm font-bold hover:bg-accent-cyan/80 transition-colors disabled:opacity-60 whitespace-nowrap"
-                      >
-                        {monitorLoading ? "Adding..." : "Add Monitor"}
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-accent-cyan text-xs">&gt;</span>
-                      <input
-                        type="text"
-                        value={newMonitorCredentials}
-                        onChange={(e) => setNewMonitorCredentials(e.target.value)}
-                        placeholder="credentials (login/password) of a test account to use"
-                        className="flex-1 px-4 py-2 border border-border-dark bg-black text-sm text-gray-400 outline-none focus:border-accent-cyan focus:text-white placeholder:text-gray-700"
-                        disabled={monitorLoading}
-                      />
-                    </div>
-                    <p className="text-[10px] text-gray-600 pl-5">Format: email:user@test.com / password:secret123 — fed to the AI agent for testing authenticated flows</p>
-                  </form>
-
-                  {monitors.length === 0 ? (
-                    <p className="text-sm text-gray-500">No monitored URLs yet. Add one above to start daily QA runs.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {monitors.map((m) => (
-                        <div
-                          key={m.url}
-                          className="flex items-center justify-between gap-3 border border-border-dark bg-surface-dark px-4 py-3"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <button
-                              type="button"
-                              onClick={() => toggleMonitorEnabled(m.url, !m.enabled)}
-                              className={`flex-shrink-0 w-9 h-5 transition-colors relative ${
-                                m.enabled ? "bg-accent-cyan" : "bg-gray-700"
-                              }`}
-                            >
-                              <span className={`absolute top-0.5 w-4 h-4 bg-black transition-transform ${
-                                m.enabled ? "left-[18px]" : "left-0.5"
-                              }`} />
-                            </button>
-                            <div className="min-w-0">
-                              <p className="text-sm font-bold text-white truncate">{m.url}</p>
-                              <p className="text-xs text-gray-600">
-                                Every {m.intervalHours}h
-                                {m.credentials && " · has credentials"}
-                                {m.lastRunAt && ` · Last: ${new Date(m.lastRunAt).toLocaleDateString()}`}
-                                {m.lastJobId && (
-                                  <Link href={`/run/${m.lastJobId}`} className="text-accent-cyan hover:underline ml-1">
-                                    View
-                                  </Link>
-                                )}
-                              </p>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => deleteMonitor(m.url)}
-                            className="text-gray-600 hover:text-red-400 transition-colors flex-shrink-0"
-                          >
-                            <span className="material-icons text-lg">delete_outline</span>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Pro features teaser */}
-              {!profile.subscription.active && (
-                <div className="mt-10 border border-accent-cyan/20 bg-accent-cyan/5 p-6">
-                  <h3 className="text-base font-bold text-white mb-3">Upgrade to Pro</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div className="flex items-start gap-2">
-                      <span className="material-icons text-accent-cyan text-lg mt-0.5">schedule</span>
-                      <div>
-                        <p className="text-sm font-bold text-white">Daily monitoring</p>
-                        <p className="text-xs text-gray-500">Automated runs every 24h</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="material-icons text-accent-amber text-lg mt-0.5">notifications_active</span>
-                      <div>
-                        <p className="text-sm font-bold text-white">Instant alerts</p>
-                        <p className="text-xs text-gray-500">Email when regressions hit</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="material-icons text-accent-green text-lg mt-0.5">all_inclusive</span>
-                      <div>
-                        <p className="text-sm font-bold text-white">Unlimited runs</p>
-                        <p className="text-xs text-gray-500">No daily limits</p>
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleUpgrade}
-                    className="bg-accent-cyan text-black px-6 py-2.5 text-sm font-bold hover:bg-accent-cyan/80 transition-colors"
-                  >
-                    Upgrade to Pro
-                  </button>
-                </div>
-              )}
-            </div>
+            <DashboardContent
+              profile={profile}
+              runs={runs}
+              monitors={monitors}
+              statusBadge={statusBadge}
+              scoreColor={scoreColor}
+              handleUpgrade={handleUpgrade}
+              addMonitorUrl={addMonitorUrl}
+              deleteMonitor={deleteMonitor}
+              toggleMonitorEnabled={toggleMonitorEnabled}
+              newMonitorUrl={newMonitorUrl}
+              setNewMonitorUrl={setNewMonitorUrl}
+              newMonitorInterval={newMonitorInterval}
+              setNewMonitorInterval={setNewMonitorInterval}
+              newMonitorCredentials={newMonitorCredentials}
+              setNewMonitorCredentials={setNewMonitorCredentials}
+              monitorLoading={monitorLoading}
+            />
           )}
         </div>
       </main>
 
       <Footer />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Dashboard with left icon sidebar                                   */
+/* ------------------------------------------------------------------ */
+
+type Tab = "runs" | "monitors";
+
+const SIDEBAR_TABS: { id: Tab; icon: string; label: string }[] = [
+  { id: "runs", icon: "history", label: "Runs" },
+  { id: "monitors", icon: "monitoring", label: "Monitors" },
+];
+
+function DashboardContent({
+  profile,
+  runs,
+  monitors,
+  statusBadge,
+  scoreColor,
+  handleUpgrade,
+  addMonitorUrl,
+  deleteMonitor,
+  toggleMonitorEnabled,
+  newMonitorUrl,
+  setNewMonitorUrl,
+  newMonitorInterval,
+  setNewMonitorInterval,
+  newMonitorCredentials,
+  setNewMonitorCredentials,
+  monitorLoading,
+}: {
+  profile: LeadProfile;
+  runs: RunSummary[];
+  monitors: MonitoredUrl[];
+  statusBadge: (s: string) => string;
+  scoreColor: (s: number) => string;
+  handleUpgrade: () => void;
+  addMonitorUrl: (e: React.FormEvent) => void;
+  deleteMonitor: (url: string) => void;
+  toggleMonitorEnabled: (url: string, enabled: boolean) => void;
+  newMonitorUrl: string;
+  setNewMonitorUrl: (v: string) => void;
+  newMonitorInterval: number;
+  setNewMonitorInterval: (v: number) => void;
+  newMonitorCredentials: string;
+  setNewMonitorCredentials: (v: string) => void;
+  monitorLoading: boolean;
+}) {
+  const [activeTab, setActiveTab] = useState<Tab>("runs");
+
+  return (
+    <div className="flex gap-0 min-h-[60vh]">
+      {/* Left icon sidebar */}
+      <nav className="flex flex-col items-center w-14 flex-shrink-0 border-r border-border-dark pt-2 gap-1">
+        {SIDEBAR_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            title={tab.label}
+            className={`w-10 h-10 flex items-center justify-center transition-colors ${
+              activeTab === tab.id
+                ? "text-accent-cyan bg-accent-cyan/10 border border-accent-cyan/30"
+                : "text-gray-600 hover:text-gray-400 hover:bg-white/5 border border-transparent"
+            }`}
+          >
+            <span className="material-icons text-xl">{tab.icon}</span>
+          </button>
+        ))}
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* New test shortcut */}
+        <Link
+          href="/"
+          title="Run a new test"
+          className="w-10 h-10 flex items-center justify-center text-gray-600 hover:text-accent-cyan hover:bg-accent-cyan/5 border border-transparent transition-colors mb-2"
+        >
+          <span className="material-icons text-xl">add_circle_outline</span>
+        </Link>
+      </nav>
+
+      {/* Main content */}
+      <div className="flex-1 pl-6">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-white">Your QA Dashboard</h2>
+            <p className="text-sm text-gray-500">{profile.email}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className={`px-3 py-1 text-xs font-bold ${
+              profile.subscription.active
+                ? "bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20"
+                : "bg-gray-500/10 text-gray-500 border border-gray-500/20"
+            }`}>
+              {profile.subscription.active ? "Pro Plan" : "Free"}
+            </span>
+            {!profile.subscription.active && (
+              <button
+                onClick={handleUpgrade}
+                className="border border-accent-cyan text-accent-cyan px-4 py-1.5 text-xs font-bold hover:bg-accent-cyan/10 transition-colors"
+              >
+                Upgrade to Pro
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Tab content */}
+        {activeTab === "runs" && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white">Run History ({runs.length})</h3>
+              <Link
+                href="/"
+                className="inline-flex items-center gap-1.5 text-xs text-accent-cyan hover:underline"
+              >
+                <span className="material-icons text-sm">add_circle</span>
+                New test
+              </Link>
+            </div>
+            {runs.length === 0 ? (
+              <p className="text-gray-500 text-sm">No runs yet. <Link href="/" className="text-accent-cyan hover:underline">Test your first app</Link></p>
+            ) : (
+              <div className="space-y-2">
+                {runs.map((run) => (
+                  <Link
+                    key={run.id}
+                    href={`/run/${run.id}`}
+                    className="flex items-center justify-between gap-4 border border-border-dark bg-surface-dark px-4 py-3 hover:border-accent-cyan/20 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className={`px-2 py-0.5 text-xs font-bold ${statusBadge(run.status)}`}>
+                        {run.status}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-white truncate">
+                          {run.report?.baseUrl || run.id}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          {new Date(run.createdAt).toLocaleDateString()} {new Date(run.createdAt).toLocaleTimeString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      {run.report?.totals && (
+                        <span className={`text-lg font-bold ${scoreColor(run.report.totals.score)}`}>
+                          {run.report.totals.score}
+                        </span>
+                      )}
+                      <span className="material-icons text-gray-600 text-sm">chevron_right</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            {/* Pro features teaser */}
+            {!profile.subscription.active && (
+              <div className="mt-8 border border-accent-cyan/20 bg-accent-cyan/5 p-6">
+                <h3 className="text-base font-bold text-white mb-3">Upgrade to Pro</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div className="flex items-start gap-2">
+                    <span className="material-icons text-accent-cyan text-lg mt-0.5">schedule</span>
+                    <div>
+                      <p className="text-sm font-bold text-white">Daily monitoring</p>
+                      <p className="text-xs text-gray-500">Automated runs every 24h</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="material-icons text-accent-amber text-lg mt-0.5">notifications_active</span>
+                    <div>
+                      <p className="text-sm font-bold text-white">Instant alerts</p>
+                      <p className="text-xs text-gray-500">Email when regressions hit</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="material-icons text-accent-green text-lg mt-0.5">all_inclusive</span>
+                    <div>
+                      <p className="text-sm font-bold text-white">Unlimited runs</p>
+                      <p className="text-xs text-gray-500">No daily limits</p>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={handleUpgrade}
+                  className="bg-accent-cyan text-black px-6 py-2.5 text-sm font-bold hover:bg-accent-cyan/80 transition-colors"
+                >
+                  Upgrade to Pro
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "monitors" && (
+          <div>
+            <h3 className="text-lg font-bold text-white mb-4">
+              Monitored URLs ({monitors.length})
+            </h3>
+
+            {!profile.subscription.active ? (
+              <div className="border border-accent-cyan/20 bg-accent-cyan/5 p-6 text-center">
+                <span className="material-icons text-accent-cyan text-3xl mb-3">lock</span>
+                <p className="text-sm text-gray-400 mb-4">URL monitoring is a Pro feature. Upgrade to set up automated daily QA runs.</p>
+                <button
+                  onClick={handleUpgrade}
+                  className="bg-accent-cyan text-black px-6 py-2.5 text-sm font-bold hover:bg-accent-cyan/80 transition-colors"
+                >
+                  Upgrade to Pro
+                </button>
+              </div>
+            ) : (
+              <>
+                <form onSubmit={addMonitorUrl} className="mb-4 space-y-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="url"
+                      value={newMonitorUrl}
+                      onChange={(e) => setNewMonitorUrl(e.target.value)}
+                      placeholder="https://your-app.com"
+                      className="flex-1 px-4 py-2.5 border border-border-dark bg-surface-dark text-sm text-white outline-none focus:border-accent-cyan"
+                      disabled={monitorLoading}
+                    />
+                    <select
+                      value={newMonitorInterval}
+                      onChange={(e) => setNewMonitorInterval(Number(e.target.value))}
+                      className="px-3 py-2.5 border border-border-dark bg-surface-dark text-sm text-white outline-none"
+                    >
+                      <option value={6}>Every 6h</option>
+                      <option value={12}>Every 12h</option>
+                      <option value={24}>Every 24h</option>
+                      <option value={168}>Weekly</option>
+                    </select>
+                    <button
+                      type="submit"
+                      disabled={monitorLoading}
+                      className="bg-accent-cyan text-black px-5 py-2.5 text-sm font-bold hover:bg-accent-cyan/80 transition-colors disabled:opacity-60 whitespace-nowrap"
+                    >
+                      {monitorLoading ? "Adding..." : "Add Monitor"}
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-accent-cyan text-xs">&gt;</span>
+                    <input
+                      type="text"
+                      value={newMonitorCredentials}
+                      onChange={(e) => setNewMonitorCredentials(e.target.value)}
+                      placeholder="credentials (login/password) of a test account to use"
+                      className="flex-1 px-4 py-2 border border-border-dark bg-black text-sm text-gray-400 outline-none focus:border-accent-cyan focus:text-white placeholder:text-gray-700"
+                      disabled={monitorLoading}
+                    />
+                  </div>
+                  <p className="text-[10px] text-gray-600 pl-5">Format: email:user@test.com / password:secret123 — fed to the AI agent for testing authenticated flows</p>
+                </form>
+
+                {monitors.length === 0 ? (
+                  <p className="text-sm text-gray-500">No monitored URLs yet. Add one above to start daily QA runs.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {monitors.map((m) => (
+                      <div
+                        key={m.url}
+                        className="flex items-center justify-between gap-3 border border-border-dark bg-surface-dark px-4 py-3"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => toggleMonitorEnabled(m.url, !m.enabled)}
+                            className={`flex-shrink-0 w-9 h-5 transition-colors relative ${
+                              m.enabled ? "bg-accent-cyan" : "bg-gray-700"
+                            }`}
+                          >
+                            <span className={`absolute top-0.5 w-4 h-4 bg-black transition-transform ${
+                              m.enabled ? "left-[18px]" : "left-0.5"
+                            }`} />
+                          </button>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-white truncate">{m.url}</p>
+                            <p className="text-xs text-gray-600">
+                              Every {m.intervalHours}h
+                              {m.credentials && " · has credentials"}
+                              {m.lastRunAt && ` · Last: ${new Date(m.lastRunAt).toLocaleDateString()}`}
+                              {m.lastJobId && (
+                                <Link href={`/run/${m.lastJobId}`} className="text-accent-cyan hover:underline ml-1">
+                                  View
+                                </Link>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => deleteMonitor(m.url)}
+                          className="text-gray-600 hover:text-red-400 transition-colors flex-shrink-0"
+                        >
+                          <span className="material-icons text-lg">delete_outline</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
