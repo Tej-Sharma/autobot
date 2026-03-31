@@ -95,8 +95,8 @@ export const CONFIG = {
   vercelToken: process.env.VERCEL_TOKEN,
   vercelProjectId: process.env.VERCEL_PROJECT_ID,
 
-  autoRunOnPrOpen: parseBoolean(process.env.AUTO_RUN_PREVIEW_ON_PR_OPEN, true),
-  autoRunOnPrSync: parseBoolean(process.env.AUTO_RUN_PREVIEW_ON_PR_SYNC, true),
+  autoRunOnPrOpen: parseBoolean(process.env.AUTO_RUN_PREVIEW_ON_PR_OPEN, false),
+  autoRunOnPrSync: parseBoolean(process.env.AUTO_RUN_PREVIEW_ON_PR_SYNC, false),
 
   freeTrialMaxPerDay: parseIntSafe(process.env.FREE_TRIAL_MAX_PER_DAY, 3),
   freeTrialCrawlLinks: parseIntSafe(process.env.FREE_TRIAL_CRAWL_LINKS, 3),

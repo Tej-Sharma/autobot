@@ -4,8 +4,8 @@ import { setJobStatus } from "./state";
 import { executeRun } from "./runner";
 import { qaQueue } from "./queue";
 import { QueuedRun } from "./types";
-import { startIdleMonitor } from "./idleMonitor";
-import { startScheduler } from "./scheduler";
+// import { startIdleMonitor } from "./idleMonitor";
+// import { startScheduler } from "./scheduler";
 
 const worker = new Worker<QueuedRun, unknown, "autobot-run">(
   CONFIG.queueName,
@@ -62,12 +62,10 @@ const drainQueueEvents = async () => {
 
 drainQueueEvents();
 
-// Start idle monitor to auto-stop unused Fly Machines
-if (CONFIG.flyApiToken) {
-  startIdleMonitor();
-}
-
-// Start scheduled monitoring for pro users
-startScheduler();
+// Disabled: all monitoring/routine runs. Only one-off manual runs allowed.
+// if (CONFIG.flyApiToken) {
+//   startIdleMonitor();
+// }
+// startScheduler();
 
 console.log("[worker] running with concurrency", CONFIG.concurrency);
